@@ -28,9 +28,7 @@ NEW_CREDITS_FM = r'''    /**
                     .trim(',', ';', ':', '·', '•', '|')
             }
             .filter { candidate ->
-                val attribution = candidate.lowercase()
                 candidate.any(Char::isLetter) &&
-                    attribution !in setOf("discogs", "mb", "musicbrainz", "music brainz", "credits.fm", "creditsfm") &&
                     !Regex("""(?i)^(?:[A-Z]{2}[A-Z0-9]{3}\d{7}|[0-9a-f]{8}-[0-9a-f-]{27,})$""")
                         .matches(candidate)
             }
@@ -62,6 +60,11 @@ NEW_CREDITS_FM = r'''    /**
             "external_ids", "external_url", "resource_url", "metadata",
             "created_at", "updated_at", "confidence", "match_type",
             "notes", "comment", "description",
+            // Instrument/equipment metadata describes what was played or used,
+            // not a person. Do not inherit a Performer role into these branches.
+            "instrument", "instruments", "instrumentation", "musical_instruments",
+            "performer_instruments", "equipment", "recording_equipment",
+            "gear", "devices", "hardware", "software", "tools", "setup",
         )
         val nameKeys = setOf(
             "name", "display_name", "person_name", "full_name",
@@ -103,8 +106,13 @@ NEW_CREDITS_FM = r'''    /**
                             key !in nameKeys &&
                             key !in setOf("role", "credit_type", "relationship", "type")
                         ) {
+                            // A role belongs to the record itself. Do not pass the
+                            // parent's role into arbitrary nested metadata: doing so
+                            // turns instrument values (e.g. "piano") into people.
+                            // Only an explicitly role-named child collection starts
+                            // a new contributor traversal.
                             val keyedRole = role(key)
-                            walk(value, keyedRole ?: localRole)
+                            walk(value, keyedRole)
                         }
                     }
                 }
@@ -243,16 +251,38 @@ class SongCreditsNameCleanupTest {
     }
 
     @Test
-    fun rejectsSourceAttributionLabelsAsContributorNames() {
-        assertEquals(emptyList(), SongCreditsParser.cleanCreditNames("discogs"))
-        assertEquals(emptyList(), SongCreditsParser.cleanCreditNames("mb"))
-        assertEquals(emptyList(), SongCreditsParser.cleanCreditNames("MusicBrainz"))
+    fun doesNotBlacklistWordsThatCouldBeNames() {
+        assertEquals(listOf("Discogs"), SongCreditsParser.cleanCreditNames("Discogs"))
+        assertEquals(listOf("MB"), SongCreditsParser.cleanCreditNames("MB"))
+        assertEquals(listOf("Piano"), SongCreditsParser.cleanCreditNames("Piano"))
     }
 
     @Test
-    fun doesNotTurnSourceAndProviderMetadataIntoPeople() {
+    fun ignoresProviderAndSourceFieldsStructurally() {
         val input = kotlinx.serialization.json.Json.parseToJsonElement(
             """{"credits":[{"role":"Performer","name":"Michael Jackson","source":"discogs","provider":"mb"}]}""",
+        )
+        assertEquals(
+            listOf(SongCredit("Performer", "Michael Jackson")),
+            SongCreditsParser.fromCreditsFm(input),
+        )
+    }
+
+    @Test
+    fun doesNotTreatInstrumentValuesAsPerformerNames() {
+        val input = kotlinx.serialization.json.Json.parseToJsonElement(
+            """{"credits":[{"role":"Performer","person":{"name":"Michael Jackson"},"instruments":["drum machine","piano"],"instrumentation":{"primary":"synthesizer"},"equipment":["microphone"]}]}""",
+        )
+        assertEquals(
+            listOf(SongCredit("Performer", "Michael Jackson")),
+            SongCreditsParser.fromCreditsFm(input),
+        )
+    }
+
+    @Test
+    fun doesNotCarryARecordRoleIntoUnrelatedNestedFields() {
+        val input = kotlinx.serialization.json.Json.parseToJsonElement(
+            """{"credits":[{"role":"Performer","name":"Michael Jackson","details":{"instrument":"piano","device":"drum machine"}}]}""",
         )
         assertEquals(
             listOf(SongCredit("Performer", "Michael Jackson")),
