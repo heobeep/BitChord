@@ -238,7 +238,13 @@ def main() -> None:
 
     load_call = "SongInfoRepository.load(song)"
     if load_call not in dialog:
-        raise SystemExit("Song Info YouTube metadata load call not found")
+        interesting = [
+            (index + 1, line)
+            for index, line in enumerate(dialog.splitlines())
+            if any(token in line.lower() for token in ("produceState", "songinfo", "song info", "youtube", "metadata", "val info", "val credits", "creditgroups"))
+        ]
+        excerpt = "\\n".join(f"{number}: {line}" for number, line in interesting[:100])
+        raise SystemExit("Song Info YouTube metadata load call not found. Generated dialog excerpt:\\n" + excerpt)
     dialog = dialog.replace(
         load_call,
         "if (showYoutubeInfo && selectedSongInfoFields.isNotEmpty()) "
