@@ -48,10 +48,10 @@ jobs:
             echo "::error::DEBUG_KEYSTORE_BASE64 is missing. Refusing to publish an APK signed with a temporary key."
             exit 1
           fi
-          mkdir -p ~/.android
-          printf '%s' "$DEBUG_KEYSTORE_BASE64" | base64 -d > ~/.android/debug.keystore
-          keytool -list -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey >/dev/null
-          echo "Permanent signing key restored and alias verified."
+          mkdir -p .ci
+          printf '%s' "$DEBUG_KEYSTORE_BASE64" | base64 -d > .ci/credits-signing.keystore
+          keytool -list -keystore .ci/credits-signing.keystore -storepass android -alias androiddebugkey >/dev/null
+          echo "Permanent Credits keystore restored and alias verified."
 
       - name: Apply the native Song Credits source patch
         run: python3 scripts/build-song-credits/apply.py --repo .
@@ -84,7 +84,7 @@ jobs:
           echo "Verified separate application ID: $PACKAGE"
           SIGNATURE_OUTPUT="$("$APKSIGNER" verify --verbose --print-certs "$APK")"
           printf '%s\\n' "$SIGNATURE_OUTPUT"
-          ACTUAL_CERT="$(printf '%s\\n' "$SIGNATURE_OUTPUT" | awk -F': ' '/Signer #1 certificate SHA-256 digest/ {print tolower($2); exit}')"
+          ACTUAL_CERT="$(printf '%s\\n' "$SIGNATURE_OUTPUT" | awk -F': ' '/certificate SHA-256 digest/ {gsub(/:/, "", $2); print tolower($2); exit}')"
           EXPECTED_CERT="cb95906a22d14fc5a2e7b8a54e0d175ef3ab55e7f5ea50bfdcb2bf8e90d7b7fb"
           if [ "$ACTUAL_CERT" != "$EXPECTED_CERT" ]; then
             echo "::error::APK was not signed with the expected permanent Credits key."
