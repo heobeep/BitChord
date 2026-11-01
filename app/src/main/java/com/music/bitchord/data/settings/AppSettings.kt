@@ -2244,7 +2244,7 @@ object AppSettings {
     private const val KEY_THEME = "theme_mode"
     private const val KEY_APP_FONT = "app_font"
     private const val KEY_SHOW_YOUTUBE_SONG_INFO = "show_youtube_song_info"
-    private const val KEY_SHOW_RECORDING_CREDITS = "show_song_credits"
+    private const val KEY_SHOW_RECORDING_CREDITS = "show_recording_credits"
     private const val KEY_SONG_INFO_FIELDS = "song_info_fields"
     private const val KEY_SONG_CREDIT_FIELDS = "song_credit_fields"
     private const val KEY_AUTOPLAY = "autoplay"
