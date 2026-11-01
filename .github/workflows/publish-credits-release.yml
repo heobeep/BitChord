@@ -1,6 +1,14 @@
 name: Publish BitChord Credits release
 
 on:
+  # One-time bootstrap: publish the already verified APK artifact from the initial
+  # successful build. The path filter prevents ordinary README commits from
+  # creating another release.
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/publish-credits-release.yml
+  # Future successful Credits builds are picked up automatically.
   workflow_run:
     workflows: ["Build BitChord Credits APK"]
     types: [completed]
@@ -13,8 +21,13 @@ permissions:
 jobs:
   publish:
     name: Publish the verified ARM64 APK
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event_name == 'push' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
+    env:
+      # The first published binary is the successful artifact created before
+      # the README-only update. Subsequent builds provide their own run ID/SHA.
+      SOURCE_RUN_ID: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || '41297714750' }}
+      SOURCE_COMMIT_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || '5c46c1a1e09c9597583f11619141781d69d8ee9f' }}
     steps:
       - name: Check whether this release already exists
         id: release-check
@@ -34,7 +47,7 @@ jobs:
         with:
           name: BitChord-Credits-arm64-optimized-apk
           path: release-assets
-          run-id: ${{ github.event.workflow_run.id }}
+          run-id: ${{ env.SOURCE_RUN_ID }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Verify and prepare release files
@@ -59,7 +72,7 @@ jobs:
         with:
           tag_name: credits-v1.9
           name: BitChord Credits v1.9
-          target_commitish: ${{ github.event.workflow_run.head_sha }}
+          target_commitish: ${{ env.SOURCE_COMMIT_SHA }}
           draft: false
           prerelease: false
           make_latest: true
