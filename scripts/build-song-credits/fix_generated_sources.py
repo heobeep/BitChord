@@ -236,20 +236,15 @@ def main() -> None:
     if "val showYoutubeInfo by AppSettings.showYoutubeSongInfo" not in dialog:
         dialog = dialog[:function_body + 1] + dialog_preferences + dialog[function_body + 1:]
 
-    old_loader = """    val info by produceState<SongInfo?>(null, song, retry) {
-        value = null
-        value = SongInfoRepository.load(song)
-    }"""
-    new_loader = """    val info by produceState<SongInfo?>(null, song, retry, showYoutubeInfo, selectedSongInfoFields) {
-        value = null
-        if (showYoutubeInfo && selectedSongInfoFields.isNotEmpty()) {
-            value = SongInfoRepository.load(song)
-        }
-    }"""
-    if old_loader in dialog:
-        dialog = dialog.replace(old_loader, new_loader, 1)
-    elif "showYoutubeInfo && selectedSongInfoFields.isNotEmpty()" not in dialog:
-        raise SystemExit("Song Info YouTube metadata loader marker not found")
+    load_call = "SongInfoRepository.load(song)"
+    if load_call not in dialog:
+        raise SystemExit("Song Info YouTube metadata load call not found")
+    dialog = dialog.replace(
+        load_call,
+        "if (showYoutubeInfo && selectedSongInfoFields.isNotEmpty()) "
+        + "SongInfoRepository.load(song) else null",
+        1,
+    )
 
     old_rows = "                rows.forEachIndexed { index, (label, value) ->"
     new_rows = """                rows.filter { (label, _) ->
