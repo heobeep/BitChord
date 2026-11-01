@@ -87,7 +87,11 @@ NEW_CREDITS_FM = r'''    /**
                     }
 
                     element.forEach { (key, value) ->
-                        if (key !in identifierKeys && key !in nameKeys) {
+                        if (
+                            key !in identifierKeys &&
+                            key !in nameKeys &&
+                            key !in setOf("role", "credit_type", "relationship", "type")
+                        ) {
                             val keyedRole = role(key)
                             walk(value, keyedRole ?: localRole)
                         }
