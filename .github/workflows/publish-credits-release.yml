@@ -1,0 +1,85 @@
+name: Publish BitChord Credits release
+
+on:
+  workflow_run:
+    workflows: ["Build BitChord Credits APK"]
+    types: [completed]
+    branches: [song-credits-apk]
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  publish:
+    name: Publish the verified ARM64 APK
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check whether this release already exists
+        id: release-check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view credits-v1.9 >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "The initial v1.9 release already exists; leaving it untouched."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download the APK from the successful build run
+        if: steps.release-check.outputs.exists == 'false'
+        uses: actions/download-artifact@v4
+        with:
+          name: BitChord-Credits-arm64-optimized-apk
+          path: release-assets
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify and prepare release files
+        if: steps.release-check.outputs.exists == 'false'
+        shell: bash
+        run: |
+          mapfile -t apks < <(find release-assets -type f -name '*.apk' -print)
+          if [ "${#apks[@]}" -ne 1 ]; then
+            echo "Expected exactly one APK in the build artifact; found ${#apks[@]}."
+            find release-assets -maxdepth 3 -type f -print
+            exit 1
+          fi
+
+          mv "${apks[0]}" release-assets/BitChord-Credits-v1.9-arm64-v8a.apk
+          sha256sum release-assets/BitChord-Credits-v1.9-arm64-v8a.apk \
+            > release-assets/BitChord-Credits-v1.9-arm64-v8a.apk.sha256
+          ls -lh release-assets/
+
+      - name: Create the GitHub release and attach the APK
+        if: steps.release-check.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: credits-v1.9
+          name: BitChord Credits v1.9
+          target_commitish: ${{ github.event.workflow_run.head_sha }}
+          draft: false
+          prerelease: false
+          make_latest: true
+          fail_on_unmatched_files: true
+          files: |
+            release-assets/BitChord-Credits-v1.9-arm64-v8a.apk
+            release-assets/BitChord-Credits-v1.9-arm64-v8a.apk.sha256
+          body: |
+            ## BitChord Credits v1.9
+
+            An independent BitChord community fork with a native song-credits experience and optional Credits.fm integration.
+
+            ### Download
+            - **BitChord-Credits-v1.9-arm64-v8a.apk** — optimized Android ARM64 phone build.
+            - **SHA-256 checksum** — use this to verify the downloaded APK.
+
+            ### Install notes
+            - ARM64 only; not a universal APK.
+            - Uses a separate application ID so it can coexist with the original BitChord app.
+            - This CI build is signed with the GitHub Actions debug signing key, not a permanent public release key. A later build may require uninstalling this copy before installing an APK signed with a different key.
+            - Build and shared metadata tests passed. Physical-device compatibility testing has not been completed across a range of devices.
+
+            See the [README](https://github.com/heobeep/BitChord#readme) for features, setup, compatibility and project details.
