@@ -65,7 +65,7 @@ def mark_patch_strings_without_translations(resources_dir: Path) -> None:
     source = base_file.read_text(encoding="utf-8")
     for tag, name in sorted(missing):
         pattern = re.compile(
-            rf'(<{re.escape(tag)}\\b(?=[^>]*\\bname="{re.escape(name)}")[^>]*)(>)'
+            rf'(<{re.escape(tag)}\b(?=[^>]*\bname="{re.escape(name)}")[^>]*)(>)'
         )
         source, count = pattern.subn(
             lambda match: match.group(1) + ' translatable="false"' + match.group(2),
