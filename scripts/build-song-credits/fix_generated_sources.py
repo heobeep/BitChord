@@ -451,6 +451,32 @@ class SongCreditFieldTest {
 }
 ''', encoding="utf-8")
 
+
+    # TEMPORARY CI diagnostic: inspect the generated provider sources before
+    # implementing broader matching/fallback behavior. Remove after inspection.
+    print("=== GENERATED SongInfoRepository.kt ===")
+    print(parser_path.read_text(encoding="utf-8"))
+    print("=== CREDITS CONFIGURATION REFERENCES ===")
+    for candidate in root.rglob("*.kt"):
+        try:
+            source = candidate.read_text(encoding="utf-8")
+        except (OSError, UnicodeError):
+            continue
+        lines = source.splitlines()
+        hits = [
+            i for i, line in enumerate(lines)
+            if any(term in line.lower() for term in (
+                "credits.fm", "creditsfm", "credits_api_key",
+                "creditsapikey", "credits key",
+            ))
+        ]
+        if hits:
+            print(f"--- {candidate.relative_to(root)} ---")
+            for i in hits:
+                for n in range(max(0, i - 2), min(len(lines), i + 3)):
+                    print(f"{n + 1}: {lines[n]}")
+    raise SystemExit("Intentional diagnostic stop: generated provider source captured.")
+
     print("Applied credits parser cleanup, native Song Info preferences, and role-filter regression tests.")
 
 if __name__ == "__main__":

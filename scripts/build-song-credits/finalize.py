@@ -107,7 +107,7 @@ def main() -> None:
     dialog = root / "app/src/main/java/com/music/bitchord/ui/components/SongInfoDialog.kt"
     replace_once(
         dialog,
-        "import com.music.bitchord.data.model.Song\\n",
+        "import com.music.bitchord.data.model.Song\n",
         """import com.music.bitchord.data.model.Song
 import com.music.bitchord.data.settings.AppSettings
 import com.music.bitchord.data.settings.SongInfoField
