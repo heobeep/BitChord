@@ -48,10 +48,15 @@ jobs:
           chmod +x ./gradlew
           ./gradlew --no-daemon :shared:jvmTest :app:assembleCreditsDebug
 
+      - name: Verify the phone APK for ARM64 devices
+        run: |
+          ls -lh app/build/outputs/apk/credits/debug/*arm64-v8a*.apk
+          test "$(find app/build/outputs/apk/credits/debug -maxdepth 1 -name '*arm64-v8a*.apk' | wc -l)" -eq 1
+
       - name: Upload installable APK
         uses: actions/upload-artifact@v4
         with:
-          name: BitChord-Credits-debug-apk
-          path: app/build/outputs/apk/credits/debug/*.apk
+          name: BitChord-Credits-arm64-debug-apk
+          path: app/build/outputs/apk/credits/debug/*arm64-v8a*.apk
           if-no-files-found: error
           retention-days: 14
