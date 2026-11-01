@@ -210,7 +210,7 @@ def main() -> None:
     )
     # Native BitChord settings drive both panels independently. Field filtering
     # uses resource/role identities, never keyword matching against display names.
-    package_line = "package com.music.bitchord.ui.components\\n"
+    package_line = "package com.music.bitchord.ui.components\n"
     for import_line in (
         "import androidx.lifecycle.compose.collectAsStateWithLifecycle",
         "import com.music.bitchord.data.settings.AppSettings",
@@ -218,15 +218,16 @@ def main() -> None:
         "import com.music.bitchord.data.settings.SongCreditField",
     ):
         if import_line not in dialog:
-            dialog = dialog.replace(package_line, package_line + import_line + "\\n", 1)
+            dialog = dialog.replace(package_line, package_line + import_line + "\n", 1)
 
-    dialog_function = re.search(r"\\bfun\\s+SongInfoDialog\\s*\\(", dialog)
+    dialog_function = re.search(r"\bfun\s+SongInfoDialog\s*\(", dialog)
     if dialog_function is None:
         raise SystemExit("Song Info dialog composable declaration not found")
     function_body = dialog.find("{", dialog_function.end())
     if function_body < 0:
         raise SystemExit("Song Info dialog composable body not found")
-    dialog_preferences = """\\n    val showYoutubeInfo by AppSettings.showYoutubeSongInfo.collectAsStateWithLifecycle()
+    dialog_preferences = """
+    val showYoutubeInfo by AppSettings.showYoutubeSongInfo.collectAsStateWithLifecycle()
     val showSongCredits by AppSettings.showSongCredits.collectAsStateWithLifecycle()
     val selectedSongInfoFields by AppSettings.songInfoFields.collectAsStateWithLifecycle()
     val selectedSongCreditFields by AppSettings.songCreditFields.collectAsStateWithLifecycle()
