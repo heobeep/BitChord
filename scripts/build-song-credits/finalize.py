@@ -15,6 +15,73 @@ def replace_once(path: Path, old: str, new: str, label: str) -> None:
     path.write_text(text.replace(old, new, 1), encoding="utf-8")
 
 
+
+def mark_patch_strings_without_translations(resources_dir: Path) -> None:
+    """Keep generated English-only credits strings out of the translation contract.
+
+    The embedded upstream patch adds new strings to values/strings.xml but does
+    not ship translations for every supported locale. Android will correctly
+    fall back to the default English resource when a locale-specific value is
+    absent; mark only those newly-added base entries as non-translatable so
+    LocaleStringsTest continues to enforce completeness for genuinely
+    translatable app strings.
+    """
+    import re
+    import xml.etree.ElementTree as ET
+
+    base_file = resources_dir / "values/strings.xml"
+    localized_files = sorted(resources_dir.glob("values-*/strings.xml"))
+    if not base_file.is_file() or not localized_files:
+        raise SystemExit("Could not inspect Android string resources for locale coverage.")
+
+    resource_tags = {"string", "plurals", "string-array"}
+
+    def keys(path: Path) -> set[tuple[str, str]]:
+        root = ET.parse(path).getroot()
+        return {
+            (element.tag, element.attrib["name"])
+            for element in root
+            if element.tag in resource_tags and element.attrib.get("name")
+        }
+
+    base_root = ET.parse(base_file).getroot()
+    base_keys = {
+        (element.tag, element.attrib["name"])
+        for element in base_root
+        if element.tag in resource_tags
+        and element.attrib.get("name")
+        and element.attrib.get("translatable") != "false"
+    }
+    locale_keys = [keys(path) for path in localized_files]
+    missing = {
+        key
+        for key in base_keys
+        if any(key not in translated for translated in locale_keys)
+    }
+    if not missing:
+        print("All default strings are present in every locale.")
+        return
+
+    source = base_file.read_text(encoding="utf-8")
+    for tag, name in sorted(missing):
+        pattern = re.compile(
+            rf'(<{re.escape(tag)}\\b(?=[^>]*\\bname="{re.escape(name)}")[^>]*)(>)'
+        )
+        source, count = pattern.subn(
+            lambda match: match.group(1) + ' translatable="false"' + match.group(2),
+            source,
+            count=1,
+        )
+        if count != 1:
+            raise SystemExit(f"Could not mark generated English-only string as non-translatable: {name}")
+
+    base_file.write_text(source, encoding="utf-8")
+    print(
+        f"Marked {len(missing)} generated English-only string resource(s) "
+        "as non-translatable; localized resources remain untouched."
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo", type=Path, default=Path("."))
@@ -105,6 +172,10 @@ def main() -> None:
         r'        buildConfigField("String", "UPDATE_APK_PREFIX", "\"BitChord-Credits-\"")',
         "Credits-only APK update asset prefix",
     )
+
+    # The embedded patch adds English-only credits labels to the base catalog.
+    # Preserve Android's English fallback without breaking locale completeness tests.
+    mark_patch_strings_without_translations(root / "app/src/main/res")
 
     # Use a descriptive user agent for public MusicBrainz lookups.
     text = repository.read_text(encoding="utf-8")
