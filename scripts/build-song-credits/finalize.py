@@ -116,6 +116,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 """,
         "Song Info & Credits preference imports",
     )
+    print("=== GENERATED SongInfoDialog.kt ===")
+    print(dialog.read_text(encoding="utf-8"))
+    raise SystemExit("Intentional diagnostic stop: generated dialog captured.")
+
     replace_once(
         dialog,
         """internal fun SongInfoDialog(song: Song, onDismiss: () -> Unit) {
