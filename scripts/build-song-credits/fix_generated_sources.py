@@ -211,16 +211,14 @@ def main() -> None:
     # Native BitChord settings drive both panels independently. Field filtering
     # uses resource/role identities, never keyword matching against display names.
     package_line = "package com.music.bitchord.ui.components\\n"
-    if "import com.music.bitchord.data.settings.AppSettings" not in dialog:
-        dialog = dialog.replace(
-            package_line,
-            package_line
-            + "\\nimport androidx.lifecycle.compose.collectAsStateWithLifecycle"
-            + "\\nimport com.music.bitchord.data.settings.AppSettings"
-            + "\\nimport com.music.bitchord.data.settings.SongInfoField"
-            + "\\nimport com.music.bitchord.data.settings.SongCreditField\\n",
-            1,
-        )
+    for import_line in (
+        "import androidx.lifecycle.compose.collectAsStateWithLifecycle",
+        "import com.music.bitchord.data.settings.AppSettings",
+        "import com.music.bitchord.data.settings.SongInfoField",
+        "import com.music.bitchord.data.settings.SongCreditField",
+    ):
+        if import_line not in dialog:
+            dialog = dialog.replace(package_line, package_line + import_line + "\\n", 1)
 
     dialog_signature = "internal fun SongInfoDialog(song: Song, onDismiss: () -> Unit) {\\n"
     dialog_preferences = (
@@ -251,7 +249,7 @@ def main() -> None:
 
     old_rows = "                rows.forEachIndexed { index, (label, value) ->"
     new_rows = """                rows.filter { (label, _) ->
-                    when (label) {
+                    showYoutubeInfo && when (label) {
                         R.string.song_info_album -> SongInfoField.ALBUM in selectedSongInfoFields
                         R.string.song_info_release_date -> SongInfoField.RELEASE_DATE in selectedSongInfoFields
                         R.string.song_info_views -> SongInfoField.VIEWS in selectedSongInfoFields
