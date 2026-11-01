@@ -133,6 +133,46 @@ enum class ThemeMode(val label: String) {
  */
 enum class AppFont { DEFAULT, LEGACY }
 
+/** YouTube metadata fields that can appear in the Song Info sheet. */
+enum class SongInfoField { ALBUM, RELEASE_DATE, VIEWS, LIKES, COMMENTS }
+
+/** Display groups derived from the provider's contributor-role field, never from a name. */
+enum class SongCreditField {
+    PERFORMERS, MUSICIANS, SONGWRITERS, COMPOSERS, PRODUCERS, ARRANGERS,
+    RECORDING_ENGINEERS, MIXING_ENGINEERS, MASTERING_ENGINEERS, PUBLISHING, VOCALS, OTHER;
+
+    companion object {
+        fun fromRole(raw: String): SongCreditField {
+            val role = raw.trim().lowercase()
+                .replace('_', ' ')
+                .replace('-', ' ')
+                .replace(Regex("\\s+"), " ")
+            return when (role) {
+                "performer", "performers", "performing", "performed by",
+                "artist", "artists", "featured artist", "featured artists" -> PERFORMERS
+                "musician", "musicians", "instrumentalist", "instrumentalists",
+                "session musician", "session musicians", "session player", "session players" -> MUSICIANS
+                "songwriter", "songwriters", "writer", "writers", "written by",
+                "lyricist", "lyricists", "lyrics" -> SONGWRITERS
+                "composer", "composers", "composition", "compositions" -> COMPOSERS
+                "producer", "producers", "co producer", "executive producer",
+                "additional producer", "associate producer" -> PRODUCERS
+                "arranger", "arrangers", "arrangement", "arrangements" -> ARRANGERS
+                "engineer", "engineers", "recording engineer", "recording engineers",
+                "audio engineer", "audio engineers", "recording", "vocal engineer" -> RECORDING_ENGINEERS
+                "mixing engineer", "mixing engineers", "mix engineer", "mix engineers",
+                "mixer", "mixers", "mixing" -> MIXING_ENGINEERS
+                "mastering engineer", "mastering engineers", "mastering" -> MASTERING_ENGINEERS
+                "publisher", "publishers", "publishing", "music publisher", "music publishers",
+                "label", "record label", "record labels" -> PUBLISHING
+                "vocal", "vocals", "vocalist", "vocalists", "background vocals",
+                "backing vocals", "lead vocals" -> VOCALS
+                else -> OTHER
+            }
+        }
+    }
+}
+
 /**
  * Which of the equaliser's two tabs is driving the sound.
  *
@@ -419,6 +459,15 @@ object AppSettings {
 
     /** Repeat mode for the player — Off, All, or One. */
     val repeatMode = MutableStateFlow(Player.REPEAT_MODE_OFF)
+
+    /** YouTube's own song metadata and engagement counts in the Song Info sheet. */
+    val showYoutubeSongInfo = MutableStateFlow(true)
+    /** Actual recording credits, independently of YouTube's metadata panel. */
+    val showSongCredits = MutableStateFlow(true)
+    /** YouTube metadata rows selected for the Song Info sheet. */
+    val songInfoFields = MutableStateFlow(SongInfoField.entries.toSet())
+    /** Contributor-role groups selected for the Song Info sheet. */
+    val songCreditFields = MutableStateFlow(SongCreditField.entries.toSet())
 
     /** Put the playing track's codec, bitrate and sample rate on the player. */
     val showNerdStats = MutableStateFlow(false)
@@ -962,6 +1011,14 @@ object AppSettings {
         appFont.value = runCatching {
             AppFont.valueOf(prefs.getString(KEY_APP_FONT, null) ?: AppFont.DEFAULT.name)
         }.getOrDefault(AppFont.DEFAULT)
+        showYoutubeSongInfo.value = prefs.getBoolean(KEY_SHOW_YOUTUBE_SONG_INFO, true)
+        showSongCredits.value = prefs.getBoolean(KEY_SHOW_SONG_CREDITS, true)
+        songInfoFields.value = prefs.getStringSet(KEY_SONG_INFO_FIELDS, null)
+            ?.mapNotNull { stored -> SongInfoField.entries.firstOrNull { it.name == stored } }
+            ?.toSet() ?: SongInfoField.entries.toSet()
+        songCreditFields.value = prefs.getStringSet(KEY_SONG_CREDIT_FIELDS, null)
+            ?.mapNotNull { stored -> SongCreditField.entries.firstOrNull { it.name == stored } }
+            ?.toSet() ?: SongCreditField.entries.toSet()
         autoplay.value = prefs.getBoolean(KEY_AUTOPLAY, true)
         shuffleEnabled.value = prefs.getBoolean(KEY_SHUFFLE_ENABLED, false)
         repeatMode.value = prefs.getInt(KEY_REPEAT_MODE, Player.REPEAT_MODE_OFF)
@@ -1321,6 +1378,32 @@ object AppSettings {
     fun setPlaybackSpeed(value: Float) {
         playbackSpeed.value = value
         prefs.edit().putFloat(KEY_SPEED, value).apply()
+    }
+
+    fun setShowYoutubeSongInfo(value: Boolean) {
+        showYoutubeSongInfo.value = value
+        prefs.edit().putBoolean(KEY_SHOW_YOUTUBE_SONG_INFO, value).apply()
+    }
+
+    fun setShowSongCredits(value: Boolean) {
+        showSongCredits.value = value
+        prefs.edit().putBoolean(KEY_SHOW_SONG_CREDITS, value).apply()
+    }
+
+    fun setSongInfoFieldEnabled(field: SongInfoField, enabled: Boolean) {
+        val updated = songInfoFields.value.toMutableSet().apply {
+            if (enabled) add(field) else remove(field)
+        }
+        songInfoFields.value = updated
+        prefs.edit().putStringSet(KEY_SONG_INFO_FIELDS, updated.mapTo(mutableSetOf()) { it.name }).apply()
+    }
+
+    fun setSongCreditFieldEnabled(field: SongCreditField, enabled: Boolean) {
+        val updated = songCreditFields.value.toMutableSet().apply {
+            if (enabled) add(field) else remove(field)
+        }
+        songCreditFields.value = updated
+        prefs.edit().putStringSet(KEY_SONG_CREDIT_FIELDS, updated.mapTo(mutableSetOf()) { it.name }).apply()
     }
 
     fun setShowNerdStats(value: Boolean) {
@@ -2160,6 +2243,10 @@ object AppSettings {
     private const val KEY_SPEED = "playback_speed"
     private const val KEY_THEME = "theme_mode"
     private const val KEY_APP_FONT = "app_font"
+    private const val KEY_SHOW_YOUTUBE_SONG_INFO = "show_youtube_song_info"
+    private const val KEY_SHOW_SONG_CREDITS = "show_song_credits"
+    private const val KEY_SONG_INFO_FIELDS = "song_info_fields"
+    private const val KEY_SONG_CREDIT_FIELDS = "song_credit_fields"
     private const val KEY_AUTOPLAY = "autoplay"
     private const val KEY_SHUFFLE_ENABLED = "shuffle_enabled"
     private const val KEY_REPEAT_MODE = "repeat_mode"

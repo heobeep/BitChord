@@ -208,6 +208,72 @@ def main() -> None:
         "creditGroups.forEachIndexed { index, (role, credits) ->",
         "creditGroups.entries.forEachIndexed { index, (role, credits) ->",
     )
+    # Native BitChord settings drive both panels independently. Field filtering
+    # uses resource/role identities, never keyword matching against display names.
+    package_line = "package com.music.bitchord.ui.components\\n"
+    if "import com.music.bitchord.data.settings.AppSettings" not in dialog:
+        dialog = dialog.replace(
+            package_line,
+            package_line
+            + "\\nimport androidx.lifecycle.compose.collectAsStateWithLifecycle"
+            + "\\nimport com.music.bitchord.data.settings.AppSettings"
+            + "\\nimport com.music.bitchord.data.settings.SongInfoField"
+            + "\\nimport com.music.bitchord.data.settings.SongCreditField\\n",
+            1,
+        )
+
+    dialog_signature = "internal fun SongInfoDialog(song: Song, onDismiss: () -> Unit) {\\n"
+    dialog_preferences = (
+        dialog_signature
+        + "    val showYoutubeInfo by AppSettings.showYoutubeSongInfo.collectAsStateWithLifecycle()\\n"
+        + "    val showSongCredits by AppSettings.showSongCredits.collectAsStateWithLifecycle()\\n"
+        + "    val selectedSongInfoFields by AppSettings.songInfoFields.collectAsStateWithLifecycle()\\n"
+        + "    val selectedSongCreditFields by AppSettings.songCreditFields.collectAsStateWithLifecycle()\\n"
+    )
+    if dialog_signature not in dialog:
+        raise SystemExit("Song Info dialog function marker not found")
+    dialog = dialog.replace(dialog_signature, dialog_preferences, 1)
+
+    old_loader = """    val info by produceState<SongInfo?>(null, song, retry) {
+        value = null
+        value = SongInfoRepository.load(song)
+    }"""
+    new_loader = """    val info by produceState<SongInfo?>(null, song, retry, showYoutubeInfo, selectedSongInfoFields) {
+        value = null
+        if (showYoutubeInfo && selectedSongInfoFields.isNotEmpty()) {
+            value = SongInfoRepository.load(song)
+        }
+    }"""
+    if old_loader in dialog:
+        dialog = dialog.replace(old_loader, new_loader, 1)
+    elif "showYoutubeInfo && selectedSongInfoFields.isNotEmpty()" not in dialog:
+        raise SystemExit("Song Info YouTube metadata loader marker not found")
+
+    old_rows = "                rows.forEachIndexed { index, (label, value) ->"
+    new_rows = """                rows.filter { (label, _) ->
+                    when (label) {
+                        R.string.song_info_album -> SongInfoField.ALBUM in selectedSongInfoFields
+                        R.string.song_info_release_date -> SongInfoField.RELEASE_DATE in selectedSongInfoFields
+                        R.string.song_info_views -> SongInfoField.VIEWS in selectedSongInfoFields
+                        R.string.song_info_likes -> SongInfoField.LIKES in selectedSongInfoFields
+                        R.string.song_info_comments -> SongInfoField.COMMENTS in selectedSongInfoFields
+                        else -> false
+                    }
+                }.forEachIndexed { index, (label, value) ->"""
+    if old_rows not in dialog:
+        raise SystemExit("Song Info visible-fields row marker not found")
+    dialog = dialog.replace(old_rows, new_rows, 1)
+
+    old_groups = "                        creditGroups.entries.forEachIndexed { index, (role, credits) ->"
+    new_groups = """                        creditGroups.entries
+                            .filter { (role, _) ->
+                                showSongCredits && SongCreditField.fromRole(role) in selectedSongCreditFields
+                            }
+                            .forEachIndexed { index, (role, credits) ->"""
+    if old_groups not in dialog:
+        raise SystemExit("Song credit role filter marker not found")
+    dialog = dialog.replace(old_groups, new_groups, 1)
+
     dialog_path.write_text(dialog, encoding="utf-8")
 
     tests_path = root / "shared/src/jvmTest/kotlin/com/music/bitchord/data/SongCreditsNameCleanupTest.kt"
@@ -300,7 +366,31 @@ class SongCreditsNameCleanupTest {
 }
 ''', encoding="utf-8")
 
-    print("Applied credits identifier cleanup, readable contributor layout, and parser regression tests.")
+    settings_test_path = root / "app/src/test/java/com/music/bitchord/data/settings/SongCreditFieldTest.kt"
+    settings_test_path.parent.mkdir(parents=True, exist_ok=True)
+    settings_test_path.write_text(r'''package com.music.bitchord.data.settings
+
+import org.junit.Assert.assertEquals
+import org.junit.Test
+
+class SongCreditFieldTest {
+    @Test
+    fun groupsProviderRoleLabelsWithoutLookingAtContributorNames() {
+        assertEquals(SongCreditField.PERFORMERS, SongCreditField.fromRole("Performing"))
+        assertEquals(SongCreditField.SONGWRITERS, SongCreditField.fromRole("Songwriter"))
+        assertEquals(SongCreditField.PRODUCERS, SongCreditField.fromRole("Co-producer"))
+        assertEquals(SongCreditField.MIXING_ENGINEERS, SongCreditField.fromRole("Mixing engineer"))
+        assertEquals(SongCreditField.MASTERING_ENGINEERS, SongCreditField.fromRole("Mastering engineer"))
+    }
+
+    @Test
+    fun preservesUnknownButValidCreditRolesUnderOther() {
+        assertEquals(SongCreditField.OTHER, SongCreditField.fromRole("Music supervisor"))
+    }
+}
+''', encoding="utf-8")
+
+    print("Applied credits parser cleanup, native Song Info preferences, and role-filter regression tests.")
 
 if __name__ == "__main__":
     main()
