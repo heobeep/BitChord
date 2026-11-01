@@ -118,7 +118,30 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
     )
     print("=== GENERATED SongInfoDialog.kt ===")
     print(dialog.read_text(encoding="utf-8"))
-    raise SystemExit("Intentional diagnostic stop: generated dialog captured.")
+    print("=== GENERATED SongInfoRepository.kt ===")
+    print(repository.read_text(encoding="utf-8"))
+    print("=== CREDITS KEY UI REFERENCES ===")
+    for candidate in root.rglob("*.kt"):
+        try:
+            lines = candidate.read_text(encoding="utf-8").splitlines()
+        except (OSError, UnicodeError):
+            continue
+        hits = [
+            i for i, line in enumerate(lines)
+            if any(term in line.lower() for term in (
+                "creditsfm", "credits.fm", "credits_api_key",
+                "credits key", "setcredits",
+            ))
+        ]
+        if hits:
+            print(f"--- {candidate.relative_to(root)} ---")
+            shown = set()
+            for i in hits:
+                for n in range(max(0, i - 3), min(len(lines), i + 5)):
+                    if n not in shown:
+                        print(f"{n + 1}: {lines[n]}")
+                        shown.add(n)
+    raise SystemExit("Intentional diagnostic stop: generated provider and key UI captured.")
 
     replace_once(
         dialog,
