@@ -31,10 +31,14 @@ jobs:
       - name: Install Android build components
         run: |
           yes | sdkmanager --licenses
-          sdkmanager --install \
-            "platforms;android-37" \
+          sdkmanager --install --channel=3 \
+            "platforms;android-37.0" \
             "ndk;27.0.12077973" \
             "cmake;3.22.1"
+          # Android 17 is published as android-37.0; AGP 8.10.1 looks up android-37.
+          if [ -d "$ANDROID_HOME/platforms/android-37.0" ] && [ ! -e "$ANDROID_HOME/platforms/android-37" ]; then
+            ln -s android-37.0 "$ANDROID_HOME/platforms/android-37"
+          fi
 
       - name: Apply the native Song Credits source patch
         run: python3 scripts/build-song-credits/apply.py --repo .
