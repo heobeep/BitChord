@@ -1,14 +1,10 @@
 name: Publish BitChord Credits release
 
 on:
-  # One-time bootstrap: publish the already verified APK artifact from the initial
-  # successful build. The path filter prevents ordinary README commits from
-  # creating another release.
   push:
     branches: [main]
     paths:
       - .github/workflows/publish-credits-release.yml
-  # Future successful Credits builds are picked up automatically.
   workflow_run:
     workflows: ["Build BitChord Credits APK"]
     types: [completed]
@@ -24,19 +20,42 @@ jobs:
     if: ${{ github.event_name == 'push' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     env:
-      # The first published binary is the successful artifact created before
-      # the README-only update. Subsequent builds provide their own run ID/SHA.
       SOURCE_RUN_ID: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || '41297714750' }}
       SOURCE_COMMIT_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || '5c46c1a1e09c9597583f11619141781d69d8ee9f' }}
     steps:
-      - name: Check whether this release already exists
+      - name: Check out the exact source used for the APK
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_COMMIT_SHA }}
+
+      - name: Read the app version and prepare release names
+        id: release-meta
+        shell: bash
+        run: |
+          VERSION="$(grep -E '^extra\["bitchordVersionName"\] = ' build.gradle.kts | sed -E 's/.*"([^"]+)".*/\1/')"
+          if [ -z "$VERSION" ]; then
+            echo "Could not read bitchordVersionName from build.gradle.kts."
+            exit 1
+          fi
+          TAG="credits-v${VERSION}"
+          APK_NAME="BitChord-Credits-v${VERSION}-arm64-v8a.apk"
+          CHECKSUM_NAME="${APK_NAME}.sha256"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "title=BitChord Credits v$VERSION" >> "$GITHUB_OUTPUT"
+          echo "apk_name=$APK_NAME" >> "$GITHUB_OUTPUT"
+          echo "checksum_name=$CHECKSUM_NAME" >> "$GITHUB_OUTPUT"
+          echo "Preparing $TAG from $SOURCE_COMMIT_SHA"
+
+      - name: Check whether this version is already published
         id: release-check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.release-meta.outputs.tag }}
         run: |
-          if gh release view credits-v1.9 >/dev/null 2>&1; then
+          if gh release view "$TAG" >/dev/null 2>&1; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "The initial v1.9 release already exists; leaving it untouched."
+            echo "$TAG already exists; leaving the published release untouched."
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
@@ -53,6 +72,9 @@ jobs:
       - name: Verify and prepare release files
         if: steps.release-check.outputs.exists == 'false'
         shell: bash
+        env:
+          APK_NAME: ${{ steps.release-meta.outputs.apk_name }}
+          CHECKSUM_NAME: ${{ steps.release-meta.outputs.checksum_name }}
         run: |
           mapfile -t apks < <(find release-assets -type f -name '*.apk' -print)
           if [ "${#apks[@]}" -ne 1 ]; then
@@ -61,38 +83,37 @@ jobs:
             exit 1
           fi
 
-          mv "${apks[0]}" release-assets/BitChord-Credits-v1.9-arm64-v8a.apk
-          sha256sum release-assets/BitChord-Credits-v1.9-arm64-v8a.apk \
-            > release-assets/BitChord-Credits-v1.9-arm64-v8a.apk.sha256
+          mv "${apks[0]}" "release-assets/$APK_NAME"
+          sha256sum "release-assets/$APK_NAME" > "release-assets/$CHECKSUM_NAME"
           ls -lh release-assets/
 
       - name: Create the GitHub release and attach the APK
         if: steps.release-check.outputs.exists == 'false'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: credits-v1.9
-          name: BitChord Credits v1.9
+          tag_name: ${{ steps.release-meta.outputs.tag }}
+          name: ${{ steps.release-meta.outputs.title }}
           target_commitish: ${{ env.SOURCE_COMMIT_SHA }}
           draft: false
           prerelease: false
           make_latest: true
           fail_on_unmatched_files: true
           files: |
-            release-assets/BitChord-Credits-v1.9-arm64-v8a.apk
-            release-assets/BitChord-Credits-v1.9-arm64-v8a.apk.sha256
+            release-assets/${{ steps.release-meta.outputs.apk_name }}
+            release-assets/${{ steps.release-meta.outputs.checksum_name }}
           body: |
-            ## BitChord Credits v1.9
+            ## BitChord Credits v${{ steps.release-meta.outputs.version }}
 
             An independent BitChord community fork with a native song-credits experience and optional Credits.fm integration.
 
             ### Download
-            - **BitChord-Credits-v1.9-arm64-v8a.apk** — optimized Android ARM64 phone build.
-            - **SHA-256 checksum** — use this to verify the downloaded APK.
+            - **${{ steps.release-meta.outputs.apk_name }}** — optimized Android ARM64 phone build.
+            - **${{ steps.release-meta.outputs.checksum_name }}** — SHA-256 checksum for verification.
 
             ### Install notes
             - ARM64 only; not a universal APK.
             - Uses a separate application ID so it can coexist with the original BitChord app.
-            - This CI build is signed with the GitHub Actions debug signing key, not a permanent public release key. A later build may require uninstalling this copy before installing an APK signed with a different key.
-            - Build and shared metadata tests passed. Physical-device compatibility testing has not been completed across a range of devices.
+            - A stable CI signing key is used only when DEBUG_KEYSTORE_BASE64 is configured. The first update from v1.9 may still require reinstalling if its original signing key differs.
+            - The build runs shared metadata tests and the Credits app unit tests. Physical-device compatibility testing is not implied by a successful CI build.
 
             See the [README](https://github.com/heobeep/BitChord#readme) for features, setup, compatibility and project details.
