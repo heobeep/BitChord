@@ -25,14 +25,14 @@ def main() -> None:
         repository,
         r'''            if (role == null || name.isNullOrBlank()) return
             val clean = name.trim()
-            val key = "\${role.lowercase()}|\${clean.lowercase()}"
+            val key = "${role.lowercase()}|${clean.lowercase()}"
 ''',
         r'''            if (role == null || name.isNullOrBlank()) return
             val clean = name.trim()
             // IPI numbers are registry identifiers, not contributor display names.
             // Match identifier-only values so names like "2Pac" and "50 Cent" survive.
             if (Regex("(?i)^(?:IPI\\s*[:#-]?\\s*)?\\d{9,11}$").matches(clean)) return
-            val key = "\${role.lowercase()}|\${clean.lowercase()}"
+            val key = "${role.lowercase()}|${clean.lowercase()}"
 ''',
         "Credits.fm IPI identifier filtering",
     )
