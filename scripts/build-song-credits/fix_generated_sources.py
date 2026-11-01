@@ -240,7 +240,7 @@ def main() -> None:
     # when either enabled panel or its selected fields change, and skip the
     # request entirely when both panels have nothing selected.
     state_match = re.search(
-        r"(val info by produceState<SongInfo\\?>\\()([^)]*)(\\)\\s*\\{)",
+        r"(val info by produceState<SongInfo\?>\()([^)]*)(\)\s*\{)",
         dialog,
     )
     if state_match is None:
@@ -271,7 +271,7 @@ def main() -> None:
         if quoted:
             if escaped:
                 escaped = False
-            elif char == "\\\\":
+            elif char == "\\":
                 escaped = True
             elif char == '"':
                 quoted = False
