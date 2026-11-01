@@ -2,6 +2,7 @@
 """Fix generated BitChord Credits sources after the embedded upstream patch is applied."""
 from pathlib import Path
 import argparse
+import re
 
 PARSER_START = "    fun fromCreditsFm(root: JsonElement): List<SongCredit> {"
 PARSER_END = "    fun fromMusicBrainz(root: JsonElement): List<SongCredit> {"
