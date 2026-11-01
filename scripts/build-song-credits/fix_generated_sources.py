@@ -296,6 +296,19 @@ def main() -> None:
     )
     dialog = dialog[:load_pos] + gated_call + dialog[close_pos + 1:]
 
+    # The upstream Credits patch calls this switch `showCredits`; the native
+    # Appearance settings own the actual visibility state for this build.
+    dialog = dialog.replace(
+        "includeCredits = showCredits,",
+        "includeCredits = showRecordingCredits,",
+        1,
+    )
+    dialog = dialog.replace(
+        "if (showCredits) {",
+        "if (showRecordingCredits) {",
+        1,
+    )
+
     # The credits heading and empty-state row belong to the selected visible
     # groups, not merely to the presence of raw provider credits.
     dialog = dialog.replace(
@@ -452,30 +465,36 @@ class SongCreditFieldTest {
 ''', encoding="utf-8")
 
 
-    # TEMPORARY CI diagnostic: inspect the generated provider sources before
-    # implementing broader matching/fallback behavior. Remove after inspection.
-    print("=== GENERATED SongInfoRepository.kt ===")
-    print(parser_path.read_text(encoding="utf-8"))
-    print("=== CREDITS CONFIGURATION REFERENCES ===")
-    for candidate in root.rglob("*.kt"):
-        try:
-            source = candidate.read_text(encoding="utf-8")
-        except (OSError, UnicodeError):
-            continue
-        lines = source.splitlines()
-        hits = [
-            i for i, line in enumerate(lines)
-            if any(term in line.lower() for term in (
-                "credits.fm", "creditsfm", "credits_api_key",
-                "creditsapikey", "credits key",
-            ))
-        ]
-        if hits:
-            print(f"--- {candidate.relative_to(root)} ---")
-            for i in hits:
-                for n in range(max(0, i - 2), min(len(lines), i + 3)):
-                    print(f"{n + 1}: {lines[n]}")
-    raise SystemExit("Intentional diagnostic stop: generated provider source captured.")
+    matching_test_path = root / "shared/src/jvmTest/kotlin/com/music/bitchord/data/SongCreditsMatchingTest.kt"
+    matching_test_path.parent.mkdir(parents=True, exist_ok=True)
+    matching_test_path.write_text(r'''package com.music.bitchord.data
+
+import kotlinx.serialization.json.Json
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
+
+class SongCreditsMatchingTest {
+    @Test
+    fun matchesTopicBylineToTheSameRecordingArtist() {
+        val response = Json.parseToJsonElement(
+            """{"recordings":[{"id":"11111111-1111-4111-8111-111111111111","title":"Example Song","artist-credit":[{"name":"Example Artist"}]}]}""",
+        )
+        assertEquals(
+            "11111111-1111-4111-8111-111111111111",
+            SongCreditsParser.bestRecordingMbid(response, "Example Song", "Example Artist - Topic"),
+        )
+    }
+
+    @Test
+    fun doesNotMatchAnUnrelatedRecordingOrArtist() {
+        val response = Json.parseToJsonElement(
+            """{"recordings":[{"id":"22222222-2222-4222-8222-222222222222","title":"Different Song","artist-credit":[{"name":"Example Artist"}]}]}""",
+        )
+        assertNull(SongCreditsParser.bestRecordingMbid(response, "Example Song", "Example Artist"))
+    }
+}
+''', encoding="utf-8")
 
     print("Applied credits parser cleanup, native Song Info preferences, and role-filter regression tests.")
 

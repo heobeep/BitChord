@@ -104,176 +104,611 @@ def main() -> None:
         "Credits.fm IPI identifier filtering",
     )
 
-    dialog = root / "app/src/main/java/com/music/bitchord/ui/components/SongInfoDialog.kt"
-    replace_once(
-        dialog,
-        "import com.music.bitchord.data.model.Song\n",
-        """import com.music.bitchord.data.model.Song
-import com.music.bitchord.data.settings.AppSettings
-import com.music.bitchord.data.settings.SongInfoField
-import com.music.bitchord.data.settings.SongCreditField
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-""",
-        "Song Info & Credits preference imports",
-    )
-    print("=== GENERATED SongInfoDialog.kt ===")
-    print(dialog.read_text(encoding="utf-8"))
-    print("=== GENERATED SongInfoRepository.kt ===")
-    print(repository.read_text(encoding="utf-8"))
-    print("=== CREDITS KEY UI REFERENCES ===")
-    for candidate in root.rglob("*.kt"):
-        try:
-            lines = candidate.read_text(encoding="utf-8").splitlines()
-        except (OSError, UnicodeError):
-            continue
-        hits = [
-            i for i, line in enumerate(lines)
-            if any(term in line.lower() for term in (
-                "creditsfm", "credits.fm", "credits_api_key",
-                "credits key", "setcredits",
-            ))
-        ]
-        if hits:
-            print(f"--- {candidate.relative_to(root)} ---")
-            shown = set()
-            for i in hits:
-                for n in range(max(0, i - 3), min(len(lines), i + 5)):
-                    if n not in shown:
-                        print(f"{n + 1}: {lines[n]}")
-                        shown.add(n)
-    raise SystemExit("Intentional diagnostic stop: generated provider and key UI captured.")
-
-    replace_once(
-        dialog,
-        """internal fun SongInfoDialog(song: Song, onDismiss: () -> Unit) {
-    var retry by remember(song.videoId) { mutableIntStateOf(0) }
-    val info by produceState<SongInfo?>(null, song, retry) {
-        value = null
-        value = SongInfoRepository.load(song)
-    }
-    val onSurface = MaterialTheme.colorScheme.onSurface
-""",
-        """internal fun SongInfoDialog(song: Song, onDismiss: () -> Unit) {
-    val showYoutubeInfo by AppSettings.showYoutubeSongInfo.collectAsStateWithLifecycle()
-    val showCredits by AppSettings.showRecordingCredits.collectAsStateWithLifecycle()
-    val selectedInfoFields by AppSettings.songInfoFields.collectAsStateWithLifecycle()
-    val selectedCreditFields by AppSettings.songCreditFields.collectAsStateWithLifecycle()
-    var retry by remember(song.videoId) { mutableIntStateOf(0) }
-    val info by produceState<SongInfo?>(null, song, retry, showYoutubeInfo, selectedInfoFields) {
-        value = null
-        if (showYoutubeInfo && selectedInfoFields.isNotEmpty()) {
-            value = SongInfoRepository.load(song)
+    # Make Credits.fm's optional key editor use the same frosted alert shell as
+    # the other BitChord integrations. The alert itself lives in AccountAlerts
+    # and is hosted at MainActivity level so its scrim covers the player/nav bar.
+    account_alerts = root / "app/src/main/java/com/music/bitchord/ui/components/AccountAlerts.kt"
+    alert_source = account_alerts.read_text(encoding="utf-8")
+    alert_marker = """@OptIn(ExperimentalHazeMaterialsApi::class)
+@Composable
+fun LastfmLoginAlert("""
+    if "fun CreditsFmApiKeyAlert(" not in alert_source:
+        if alert_marker not in alert_source:
+            raise SystemExit("Credits.fm native alert insertion point not found")
+        credits_alert = r'''@OptIn(ExperimentalHazeMaterialsApi::class)
+@Composable
+fun CreditsFmApiKeyAlert(
+    hazeState: HazeState,
+    savedKey: String,
+    onSave: (String) -> Unit,
+    onRemove: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var keyInput by remember(savedKey) { mutableStateOf(savedKey) }
+    AlertScaffold(hazeState = hazeState, onDismiss = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 19.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text = stringResource(R.string.credits_fm_api_key),
+                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 17.sp, fontWeight = FontWeight.W600),
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                text = stringResource(R.string.credits_fm_key_optional),
+                modifier = Modifier.padding(top = 4.dp, bottom = 14.dp),
+                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 17.sp),
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+            )
+            PillTextField(
+                value = keyInput,
+                onValueChange = { keyInput = it },
+                placeholder = stringResource(R.string.credits_fm_api_key),
+                isPassword = true,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Password,
+                    imeAction = ImeAction.Done,
+                ),
+                keyboardActions = KeyboardActions(
+                    onDone = { if (keyInput.isNotBlank()) onSave(keyInput.trim()) },
+                ),
+            )
         }
+        AlertRule()
+        AlertAction(
+            label = stringResource(R.string.credits_fm_save),
+            emphasised = true,
+            onClick = { onSave(keyInput.trim()) },
+            enabled = keyInput.isNotBlank(),
+        )
+        if (savedKey.isNotBlank()) {
+            AlertRule()
+            AlertAction(
+                label = stringResource(R.string.credits_fm_remove),
+                emphasised = false,
+                destructive = true,
+                onClick = onRemove,
+            )
+        }
+        AlertRule()
+        AlertAction(
+            label = stringResource(R.string.credits_fm_cancel),
+            emphasised = false,
+            onClick = onDismiss,
+        )
     }
-    val onSurface = MaterialTheme.colorScheme.onSurface
-""",
-        "connect Song Info & Credits preferences to the dialog",
-    )
+}
+
+'''
+        alert_source = alert_source.replace(alert_marker, credits_alert + alert_marker, 1)
+        account_alerts.write_text(alert_source, encoding="utf-8")
+
+    # The account page keeps the saved/not-saved status row, but its click opens
+    # the root-level native alert instead of a stock Material AlertDialog.
+    account_screen = root / "app/src/main/java/com/music/bitchord/ui/screens/AccountAndScrobblingScreen.kt"
     replace_once(
-        dialog,
-        """                val rows = listOf(
-                    R.string.song_info_album to (info?.album ?: song.albumName),
-                    R.string.song_info_release_date to (info?.releaseDate ?: info?.releaseYear),
-                    R.string.song_info_views to info?.views?.let(::compactCount),
-                    R.string.song_info_likes to info?.likes,
-                    R.string.song_info_comments to info?.comments,
-                )
-                rows.forEachIndexed { index, (label, value) ->
-                    if (index > 0) AlertRule(Modifier.padding(start = 16.dp))
-                    SongInfoRow(
-                        label = stringResource(label),
-                        value = value ?: unavailable.takeIf { info != null },
-                    )
-                }
-""",
-        """                val rows = buildList {
-                    if (SongInfoField.ALBUM in selectedInfoFields) add(R.string.song_info_album to (info?.album ?: song.albumName))
-                    if (SongInfoField.RELEASE_DATE in selectedInfoFields) add(R.string.song_info_release_date to (info?.releaseDate ?: info?.releaseYear))
-                    if (SongInfoField.VIEWS in selectedInfoFields) add(R.string.song_info_views to info?.views?.let(::compactCount))
-                    if (SongInfoField.LIKES in selectedInfoFields) add(R.string.song_info_likes to info?.likes)
-                    if (SongInfoField.COMMENTS in selectedInfoFields) add(R.string.song_info_comments to info?.comments)
-                }
-                if (showYoutubeInfo) {
-                    rows.forEachIndexed { index, (label, value) ->
-                        if (index > 0) AlertRule(Modifier.padding(start = 16.dp))
-                        SongInfoRow(
-                            label = stringResource(label),
-                            value = value ?: unavailable.takeIf { info != null },
-                        )
-                    }
-                    if (info?.failed == true) {
-                        Text(
-                            text = stringResource(R.string.song_info_error),
-                            modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 10.dp),
-                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 15.sp),
-                            color = MaterialTheme.colorScheme.error,
-                        )
-                    }
-                }
-""",
-        "apply selected YouTube metadata fields",
+        account_screen,
+        "    onOpenLastfmLogin: () -> Unit,\n    onOpenDiscord: () -> Unit,",
+        "    onOpenLastfmLogin: () -> Unit,\n    onOpenCreditsFmKey: () -> Unit,\n    onOpenDiscord: () -> Unit,",
+        "Credits.fm key editor callback",
     )
-    replace_once(
-        dialog,
-        """                if (info?.failed == true) {
-                    Text(
-                        text = stringResource(R.string.song_info_error),
-                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 10.dp),
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 15.sp),
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
-""",
+    account_text = account_screen.read_text(encoding="utf-8")
+    account_text = account_text.replace(
+        "    var showCreditsFmKeyDialog by remember { mutableStateOf(false) }\n",
         "",
-        "avoid duplicate Song Info error message",
+    ).replace(
+        "    var creditsFmKeyDraft by remember { mutableStateOf(\"\") }\n",
+        "",
+    )
+    old_key_click = """                onClick = {
+                    creditsFmKeyDraft = creditsFmApiKey
+                    showCreditsFmKeyDialog = true
+                },"""
+    if old_key_click in account_text:
+        account_text = account_text.replace(old_key_click, "                onClick = onOpenCreditsFmKey,", 1)
+
+    def remove_kotlin_block(source: str, marker: str) -> str:
+        start_at = source.find(marker)
+        if start_at < 0:
+            return source
+        opening = source.find("{", start_at)
+        if opening < 0:
+            raise SystemExit("Could not find the opening brace for " + marker)
+        depth = 0
+        quoted = False
+        escaped = False
+        for index in range(opening, len(source)):
+            char = source[index]
+            if quoted:
+                if escaped:
+                    escaped = False
+                elif char == "\\":
+                    escaped = True
+                elif char == '"':
+                    quoted = False
+            elif char == '"':
+                quoted = True
+            elif char == "{":
+                depth += 1
+            elif char == "}":
+                depth -= 1
+                if depth == 0:
+                    end_at = index + 1
+                    while end_at < len(source) and source[end_at] == "\n":
+                        end_at += 1
+                    return source[:start_at] + source[end_at:]
+        raise SystemExit("Could not find the end of " + marker)
+
+    account_text = remove_kotlin_block(account_text, "    if (showCreditsFmKeyDialog) {")
+    account_screen.write_text(account_text, encoding="utf-8")
+
+    # Root-level presentation mirrors the ListenBrainz/Last.fm alert lifecycle:
+    # it survives route layout and places the scrim above the mini-player.
+    main_activity = root / "app/src/main/java/com/music/bitchord/MainActivity.kt"
+    replace_once(
+        main_activity,
+        "import com.music.bitchord.ui.components.ListenBrainzTokenAlert\n",
+        "import com.music.bitchord.ui.components.ListenBrainzTokenAlert\nimport com.music.bitchord.ui.components.CreditsFmApiKeyAlert\n",
+        "Credits.fm alert import",
     )
     replace_once(
-        dialog,
-        r'''                        creditGroups.forEach { (role, credits) ->
-                            SongInfoRow(
-                                label = role,
-                                value = credits.joinToString(" · ") { it.name },
-                            )
-                        }
-''',
-        r'''                        creditGroups
-                            .filterKeys { role -> SongCreditField.fromRole(role) in selectedCreditFields }
-                            .takeIf { showCredits }
-                            ?.entries
-                            ?.forEachIndexed { index, (role, credits) ->
-                            if (index > 0) AlertRule(Modifier.padding(start = 16.dp))
-                            Column(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                                verticalArrangement = Arrangement.spacedBy(4.dp),
-                                horizontalAlignment = Alignment.Start,
-                            ) {
-                                Text(
-                                    text = role,
-                                    style = MaterialTheme.typography.bodyMedium.copy(
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.W600,
-                                    ),
-                                    color = onSurface.copy(alpha = 0.68f),
-                                )
-                                credits.forEach { credit ->
-                                    Text(
-                                        text = credit.name,
-                                        modifier = Modifier.fillMaxWidth(),
-                                        style = MaterialTheme.typography.bodyLarge.copy(
-                                            fontSize = 15.sp,
-                                            lineHeight = 19.sp,
-                                        ),
-                                        color = onSurface,
-                                        textAlign = TextAlign.Start,
-                                    )
-                                }
+        main_activity,
+        "    var showLastfmLogin by remember { mutableStateOf(false) }\n",
+        "    var showLastfmLogin by remember { mutableStateOf(false) }\n    var showCreditsFmKeyAlert by remember { mutableStateOf(false) }\n",
+        "Credits.fm alert state",
+    )
+    replace_once(
+        main_activity,
+        "        BackHandler(enabled = showLastfmLogin) { showLastfmLogin = false }\n",
+        "        BackHandler(enabled = showLastfmLogin) { showLastfmLogin = false }\n        BackHandler(enabled = showCreditsFmKeyAlert) { showCreditsFmKeyAlert = false }\n",
+        "Credits.fm alert back handling",
+    )
+    replace_once(
+        main_activity,
+        "                                onOpenLastfmLogin = { showLastfmLogin = true },\n",
+        "                                onOpenLastfmLogin = { showLastfmLogin = true },\n                                onOpenCreditsFmKey = { showCreditsFmKeyAlert = true },\n",
+        "Credits.fm account page callback",
+    )
+    credits_alert_host = """        if (showCreditsFmKeyAlert) {
+            CreditsFmApiKeyAlert(
+                hazeState = hazeState,
+                savedKey = AppSettings.creditsFmApiKey.value,
+                onSave = {
+                    AppSettings.setCreditsFmApiKey(it)
+                    showCreditsFmKeyAlert = false
+                },
+                onRemove = {
+                    AppSettings.setCreditsFmApiKey("")
+                    showCreditsFmKeyAlert = false
+                },
+                onDismiss = { showCreditsFmKeyAlert = false },
+            )
+        }
+
+"""
+    replace_once(
+        main_activity,
+        "        if (showLastfmLogin) {\n",
+        credits_alert_host + "        if (showLastfmLogin) {\n",
+        "Credits.fm root alert host",
+    )
+
+    # A resolved Credits.fm response can be partial. Query the flat and graph
+    # endpoints whenever we have a concrete ISRC, then merge by role + person.
+    repository_text = repository.read_text(encoding="utf-8")
+    repository_text = repository_text.replace(
+        "if (isrc != null && credits.isEmpty()) {",
+        "if (isrc != null) {",
+    )
+    repository_text = repository_text.replace(
+        'parameter("limit", 5)',
+        'parameter("limit", 25)',
+    )
+    old_query = 'val query = "recording:' + chr(36) + '{luceneQuote(title)} AND artist:' + chr(36) + '{luceneQuote(artist)}"'
+    new_query = 'val searchableArtist = artist.replace(Regex("""\\s*[-–—]\\s*Topic$""", RegexOption.IGNORE_CASE), "").trim()\n                    val query = "recording:" + luceneQuote(title) + " AND artist:" + luceneQuote(searchableArtist)'
+    if old_query in repository_text:
+        repository_text = repository_text.replace(old_query, new_query, 1)
+
+    # MusicBrainz matching remains conservative on title, but normalizes the
+    # YouTube Music "Artist - Topic" suffix and tolerates artist-credit joins.
+    matcher_start = "    fun bestRecordingMbid(root: JsonElement, title: String, artist: String): String? {"
+    matcher_end = "    fun findFirstString(root: JsonElement, keys: Set<String>): String? {"
+    matcher_a = repository_text.find(matcher_start)
+    matcher_b = repository_text.find(matcher_end, matcher_a)
+    if matcher_a < 0 or matcher_b < 0:
+        raise SystemExit("MusicBrainz recording matcher source block not found")
+    new_matcher = r'''    fun bestRecordingMbid(root: JsonElement, title: String, artist: String): String? {
+        val recordings = (root as? JsonObject)?.get("recordings") as? JsonArray ?: return null
+        val wantedTitle = normalize(title)
+        val wantedArtist = normalize(
+            artist.replace(Regex("""\s*[-–—]\s*Topic$""", RegexOption.IGNORE_CASE), ""),
+        )
+        val candidates = recordings.mapNotNull { it as? JsonObject }.mapNotNull { recording ->
+            val id = recording.string("id") ?: return@mapNotNull null
+            val candidateTitle = normalize(recording.string("title").orEmpty())
+            val artistCredits = recording["artist-credit"] as? JsonArray
+            val candidateArtist = artistCredits?.joinToString("") { part ->
+                val credit = part as? JsonObject
+                (credit?.string("name") ?: credit?.obj("artist")?.string("name") ?: "") +
+                    (credit?.string("joinphrase") ?: "")
+            }?.let { value ->
+                normalize(value.replace(Regex("""\s*[-–—]\s*Topic$""", RegexOption.IGNORE_CASE), ""))
+            }.orEmpty()
+            val titleScore = when {
+                candidateTitle == wantedTitle -> 3
+                candidateTitle.startsWith(wantedTitle + " ") -> 2
+                wantedTitle.startsWith(candidateTitle + " ") -> 2
+                else -> 0
+            }
+            val artistScore = when {
+                candidateArtist.isBlank() || wantedArtist.isBlank() -> 0
+                candidateArtist == wantedArtist -> 3
+                candidateArtist.contains(wantedArtist) -> 2
+                wantedArtist.contains(candidateArtist) &&
+                    candidateArtist.length.toFloat() / wantedArtist.length.coerceAtLeast(1) >= 0.72f -> 1
+                else -> 0
+            }
+            if (titleScore < 2 || artistScore < 1) null
+            else Triple(id, titleScore * 10 + artistScore, candidateTitle.length)
+        }
+        return candidates.maxWithOrNull(
+            compareBy<Triple<String, Int, Int>> { it.second }.thenBy { it.third },
+        )?.first
+    }
+
+'''
+    repository_text = repository_text[:matcher_a] + new_matcher + repository_text[matcher_b:]
+
+    # A MusicBrainz recording can have an ISRC even when its relationship list
+    # is empty. Use that exact ID to ask Credits.fm for recording-level credits.
+    old_mb_add = "                if (recording != null) addAll(SongCreditsParser.fromMusicBrainz(recording))"
+    new_mb_add = r'''                if (recording != null) {
+                    addAll(SongCreditsParser.fromMusicBrainz(recording))
+                    val musicBrainzIsrc = ((recording as? JsonObject)?.get("isrcs") as? JsonArray)
+                        ?.mapNotNull { item ->
+                            (item as? JsonObject)?.get("id")?.let { value ->
+                                (value as? JsonPrimitive)?.contentOrNull
                             }
                         }
-''',
-        "left-aligned song credits layout",
+                        ?.firstOrNull { Regex("[A-Za-z]{2}[A-Za-z0-9]{3}[0-9]{7}").matches(it) }
+
+                    if (isrc == null && musicBrainzIsrc != null) {
+                        isrc = musicBrainzIsrc
+                        val byIsrc = attempt {
+                            val response = client.get("https://api.credits.fm/v1/isrc/" + musicBrainzIsrc) {
+                                if (creditsFmApiKey.isNotBlank()) header("x-api-key", creditsFmApiKey.trim())
+                                parameter("contribute", "false")
+                            }
+                            check(response.status.value in 200..299) { "Credits.fm ISRC lookup failed" }
+                            Json.parseToJsonElement(response.bodyAsText())
+                        }.getOrNull()
+                        if (byIsrc != null) addAll(SongCreditsParser.fromCreditsFm(byIsrc))
+
+                        val graph = attempt {
+                            val response = client.get("https://api.credits.fm/v1/graph/isrc/" + musicBrainzIsrc) {
+                                if (creditsFmApiKey.isNotBlank()) header("x-api-key", creditsFmApiKey.trim())
+                                parameter("depth", 2)
+                                parameter("people", 1)
+                            }
+                            check(response.status.value in 200..299) { "Credits.fm graph lookup failed" }
+                            Json.parseToJsonElement(response.bodyAsText())
+                        }.getOrNull()
+                        if (graph != null) addAll(SongCreditsParser.fromCreditsFm(graph))
+                    }
+                }'''
+    if old_mb_add not in repository_text:
+        raise SystemExit("MusicBrainz recording credit merge marker not found")
+    repository_text = repository_text.replace(old_mb_add, new_mb_add, 1)
+    repository.write_text(repository_text, encoding="utf-8")
+
+    updater = root / "app/src/main/java/com/music/bitchord/data/AppUpdateChecker.kt"
+    replace_once(
+        updater,
+        "https://api.github.com/repos/kushagrasinghx/BitChord/releases/latest",
+        "https://api.github.com/repos/heobeep/BitChord/releases/latest",
+        "Credits fork release endpoint",
     )
+    replace_once(
+        updater,
+        '            val latest = tag.removePrefix("v")',
+        '''            val latest = tag.substringAfterLast('v')
+                .takeIf { it.firstOrNull()?.isDigit() == true }
+                ?: tag.removePrefix("v")''',
+        "Credits release tag version parsing",
+    )
+
+    gradle = root / "app/build.gradle.kts"
+    # Point the distributable benchmark variant straight at the stable key.
+    # Do not rely on AGP's implicit debug-key path: it can use a runner-generated
+    # Android Debug certificate even when a key has been restored elsewhere.
+    replace_once(
+        gradle,
+        '            signingConfig = signingConfigs.getByName("debug")',
+        '''            signingConfig = signingConfigs.create("creditsStable") {
+                storeFile = rootProject.file(".ci/credits-signing.keystore")
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            }''',
+        "benchmark APK permanent signing",
+    )
+
+    replace_once(
+        gradle,
+        r'        buildConfigField("String", "UPDATE_APK_PREFIX", "\"BitChord-\"")',
+        r'        buildConfigField("String", "UPDATE_APK_PREFIX", "\"BitChord-Credits-\"")',
+        "Credits-only APK update asset prefix",
+    )
+
+    # The embedded patch adds English-only credits labels to the base catalog.
+    # Preserve Android's English fallback without breaking locale completeness tests.
+    mark_patch_strings_without_translations(root / "app/src/main/res")
+
+    # Use a descriptive user agent for public MusicBrainz lookups.
+    text = repository.read_text(encoding="utf-8")
+    old_agent = 'private const val MUSICBRAINZ_USER_AGENT = "BitChord (https://github.com/kushagrasinghx/BitChord)"'
+    new_agent = 'private const val MUSICBRAINZ_USER_AGENT = "BitChord Credits (https://github.com/heobeep/BitChord)"'
+    if new_agent not in text and old_agent in text:
+        repository.write_text(text.replace(old_agent, new_agent, 1), encoding="utf-8")
+
+    print("Credits display cleanup and fork updater fixes applied.")
+
+
+if __name__ == "__main__":
+    main()
+ + '{luceneQuote(title)} AND artist:' + '
+    new_query = 'val searchableArtist = artist.replace(Regex("""\\s*[-–—]\\s*Topic$""", RegexOption.IGNORE_CASE), "").trim()\n                    val query = "recording:" + luceneQuote(title) + " AND artist:" + luceneQuote(searchableArtist)'
+    if old_query in repository_text:
+        repository_text = repository_text.replace(old_query, new_query, 1)
+
+    # MusicBrainz matching remains conservative on title, but normalizes the
+    # YouTube Music "Artist - Topic" suffix and tolerates artist-credit joins.
+    matcher_start = "    fun bestRecordingMbid(root: JsonElement, title: String, artist: String): String? {"
+    matcher_end = "    fun findFirstString(root: JsonElement, keys: Set<String>): String? {"
+    matcher_a = repository_text.find(matcher_start)
+    matcher_b = repository_text.find(matcher_end, matcher_a)
+    if matcher_a < 0 or matcher_b < 0:
+        raise SystemExit("MusicBrainz recording matcher source block not found")
+    new_matcher = r'''    fun bestRecordingMbid(root: JsonElement, title: String, artist: String): String? {
+        val recordings = (root as? JsonObject)?.get("recordings") as? JsonArray ?: return null
+        val wantedTitle = normalize(title)
+        val wantedArtist = normalize(
+            artist.replace(Regex("""\s*[-–—]\s*Topic$""", RegexOption.IGNORE_CASE), ""),
+        )
+        val candidates = recordings.mapNotNull { it as? JsonObject }.mapNotNull { recording ->
+            val id = recording.string("id") ?: return@mapNotNull null
+            val candidateTitle = normalize(recording.string("title").orEmpty())
+            val artistCredits = recording["artist-credit"] as? JsonArray
+            val candidateArtist = artistCredits?.joinToString("") { part ->
+                val credit = part as? JsonObject
+                (credit?.string("name") ?: credit?.obj("artist")?.string("name") ?: "") +
+                    (credit?.string("joinphrase") ?: "")
+            }?.let { value ->
+                normalize(value.replace(Regex("""\s*[-–—]\s*Topic$""", RegexOption.IGNORE_CASE), ""))
+            }.orEmpty()
+            val titleScore = when {
+                candidateTitle == wantedTitle -> 3
+                candidateTitle.startsWith(wantedTitle + " ") -> 2
+                wantedTitle.startsWith(candidateTitle + " ") -> 2
+                else -> 0
+            }
+            val artistScore = when {
+                candidateArtist.isBlank() || wantedArtist.isBlank() -> 0
+                candidateArtist == wantedArtist -> 3
+                candidateArtist.contains(wantedArtist) -> 2
+                wantedArtist.contains(candidateArtist) &&
+                    candidateArtist.length.toFloat() / wantedArtist.length.coerceAtLeast(1) >= 0.72f -> 1
+                else -> 0
+            }
+            if (titleScore < 2 || artistScore < 1) null
+            else Triple(id, titleScore * 10 + artistScore, candidateTitle.length)
+        }
+        return candidates.maxWithOrNull(
+            compareBy<Triple<String, Int, Int>> { it.second }.thenBy { it.third },
+        )?.first
+    }
+
+'''
+    repository_text = repository_text[:matcher_a] + new_matcher + repository_text[matcher_b:]
+
+    # A MusicBrainz recording can have an ISRC even when its relationship list
+    # is empty. Use that exact ID to ask Credits.fm for recording-level credits.
+    old_mb_add = "                if (recording != null) addAll(SongCreditsParser.fromMusicBrainz(recording))"
+    new_mb_add = r'''                if (recording != null) {
+                    addAll(SongCreditsParser.fromMusicBrainz(recording))
+                    val musicBrainzIsrc = (recording["isrcs"] as? JsonArray)
+                        ?.mapNotNull { item ->
+                            (item as? JsonObject)?.get("id")?.let { value ->
+                                (value as? JsonPrimitive)?.contentOrNull
+                            }
+                        }
+                        ?.firstOrNull { Regex("[A-Za-z]{2}[A-Za-z0-9]{3}[0-9]{7}").matches(it) }
+
+                    if (isrc == null && musicBrainzIsrc != null) {
+                        isrc = musicBrainzIsrc
+                        val byIsrc = attempt {
+                            val response = client.get("https://api.credits.fm/v1/isrc/" + musicBrainzIsrc) {
+                                if (creditsFmApiKey.isNotBlank()) header("x-api-key", creditsFmApiKey.trim())
+                                parameter("contribute", "false")
+                            }
+                            check(response.status.value in 200..299) { "Credits.fm ISRC lookup failed" }
+                            Json.parseToJsonElement(response.bodyAsText())
+                        }.getOrNull()
+                        if (byIsrc != null) addAll(SongCreditsParser.fromCreditsFm(byIsrc))
+
+                        val graph = attempt {
+                            val response = client.get("https://api.credits.fm/v1/graph/isrc/" + musicBrainzIsrc) {
+                                if (creditsFmApiKey.isNotBlank()) header("x-api-key", creditsFmApiKey.trim())
+                                parameter("depth", 2)
+                                parameter("people", 1)
+                            }
+                            check(response.status.value in 200..299) { "Credits.fm graph lookup failed" }
+                            Json.parseToJsonElement(response.bodyAsText())
+                        }.getOrNull()
+                        if (graph != null) addAll(SongCreditsParser.fromCreditsFm(graph))
+                    }
+                }'''
+    if old_mb_add not in repository_text:
+        raise SystemExit("MusicBrainz recording credit merge marker not found")
+    repository_text = repository_text.replace(old_mb_add, new_mb_add, 1)
+    repository.write_text(repository_text, encoding="utf-8")
+
+    updater = root / "app/src/main/java/com/music/bitchord/data/AppUpdateChecker.kt"
+    replace_once(
+        updater,
+        "https://api.github.com/repos/kushagrasinghx/BitChord/releases/latest",
+        "https://api.github.com/repos/heobeep/BitChord/releases/latest",
+        "Credits fork release endpoint",
+    )
+    replace_once(
+        updater,
+        '            val latest = tag.removePrefix("v")',
+        '''            val latest = tag.substringAfterLast('v')
+                .takeIf { it.firstOrNull()?.isDigit() == true }
+                ?: tag.removePrefix("v")''',
+        "Credits release tag version parsing",
+    )
+
+    gradle = root / "app/build.gradle.kts"
+    # Point the distributable benchmark variant straight at the stable key.
+    # Do not rely on AGP's implicit debug-key path: it can use a runner-generated
+    # Android Debug certificate even when a key has been restored elsewhere.
+    replace_once(
+        gradle,
+        '            signingConfig = signingConfigs.getByName("debug")',
+        '''            signingConfig = signingConfigs.create("creditsStable") {
+                storeFile = rootProject.file(".ci/credits-signing.keystore")
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            }''',
+        "benchmark APK permanent signing",
+    )
+
+    replace_once(
+        gradle,
+        r'        buildConfigField("String", "UPDATE_APK_PREFIX", "\"BitChord-\"")',
+        r'        buildConfigField("String", "UPDATE_APK_PREFIX", "\"BitChord-Credits-\"")',
+        "Credits-only APK update asset prefix",
+    )
+
+    # The embedded patch adds English-only credits labels to the base catalog.
+    # Preserve Android's English fallback without breaking locale completeness tests.
+    mark_patch_strings_without_translations(root / "app/src/main/res")
+
+    # Use a descriptive user agent for public MusicBrainz lookups.
+    text = repository.read_text(encoding="utf-8")
+    old_agent = 'private const val MUSICBRAINZ_USER_AGENT = "BitChord (https://github.com/kushagrasinghx/BitChord)"'
+    new_agent = 'private const val MUSICBRAINZ_USER_AGENT = "BitChord Credits (https://github.com/heobeep/BitChord)"'
+    if new_agent not in text and old_agent in text:
+        repository.write_text(text.replace(old_agent, new_agent, 1), encoding="utf-8")
+
+    print("Credits display cleanup and fork updater fixes applied.")
+
+
+if __name__ == "__main__":
+    main()
+ + '{luceneQuote(artist)}"'
+    new_query = 'val searchableArtist = artist.replace(Regex("""\\s*[-–—]\\s*Topic$""", RegexOption.IGNORE_CASE), "").trim()\n                    val query = "recording:" + luceneQuote(title) + " AND artist:" + luceneQuote(searchableArtist)'
+    if old_query in repository_text:
+        repository_text = repository_text.replace(old_query, new_query, 1)
+
+    # MusicBrainz matching remains conservative on title, but normalizes the
+    # YouTube Music "Artist - Topic" suffix and tolerates artist-credit joins.
+    matcher_start = "    fun bestRecordingMbid(root: JsonElement, title: String, artist: String): String? {"
+    matcher_end = "    fun findFirstString(root: JsonElement, keys: Set<String>): String? {"
+    matcher_a = repository_text.find(matcher_start)
+    matcher_b = repository_text.find(matcher_end, matcher_a)
+    if matcher_a < 0 or matcher_b < 0:
+        raise SystemExit("MusicBrainz recording matcher source block not found")
+    new_matcher = r'''    fun bestRecordingMbid(root: JsonElement, title: String, artist: String): String? {
+        val recordings = (root as? JsonObject)?.get("recordings") as? JsonArray ?: return null
+        val wantedTitle = normalize(title)
+        val wantedArtist = normalize(
+            artist.replace(Regex("""\s*[-–—]\s*Topic$""", RegexOption.IGNORE_CASE), ""),
+        )
+        val candidates = recordings.mapNotNull { it as? JsonObject }.mapNotNull { recording ->
+            val id = recording.string("id") ?: return@mapNotNull null
+            val candidateTitle = normalize(recording.string("title").orEmpty())
+            val artistCredits = recording["artist-credit"] as? JsonArray
+            val candidateArtist = artistCredits?.joinToString("") { part ->
+                val credit = part as? JsonObject
+                (credit?.string("name") ?: credit?.obj("artist")?.string("name") ?: "") +
+                    (credit?.string("joinphrase") ?: "")
+            }?.let { value ->
+                normalize(value.replace(Regex("""\s*[-–—]\s*Topic$""", RegexOption.IGNORE_CASE), ""))
+            }.orEmpty()
+            val titleScore = when {
+                candidateTitle == wantedTitle -> 3
+                candidateTitle.startsWith(wantedTitle + " ") -> 2
+                wantedTitle.startsWith(candidateTitle + " ") -> 2
+                else -> 0
+            }
+            val artistScore = when {
+                candidateArtist.isBlank() || wantedArtist.isBlank() -> 0
+                candidateArtist == wantedArtist -> 3
+                candidateArtist.contains(wantedArtist) -> 2
+                wantedArtist.contains(candidateArtist) &&
+                    candidateArtist.length.toFloat() / wantedArtist.length.coerceAtLeast(1) >= 0.72f -> 1
+                else -> 0
+            }
+            if (titleScore < 2 || artistScore < 1) null
+            else Triple(id, titleScore * 10 + artistScore, candidateTitle.length)
+        }
+        return candidates.maxWithOrNull(
+            compareBy<Triple<String, Int, Int>> { it.second }.thenBy { it.third },
+        )?.first
+    }
+
+'''
+    repository_text = repository_text[:matcher_a] + new_matcher + repository_text[matcher_b:]
+
+    # A MusicBrainz recording can have an ISRC even when its relationship list
+    # is empty. Use that exact ID to ask Credits.fm for recording-level credits.
+    old_mb_add = "                if (recording != null) addAll(SongCreditsParser.fromMusicBrainz(recording))"
+    new_mb_add = r'''                if (recording != null) {
+                    addAll(SongCreditsParser.fromMusicBrainz(recording))
+                    val musicBrainzIsrc = (recording["isrcs"] as? JsonArray)
+                        ?.mapNotNull { item ->
+                            (item as? JsonObject)?.get("id")?.let { value ->
+                                (value as? JsonPrimitive)?.contentOrNull
+                            }
+                        }
+                        ?.firstOrNull { Regex("[A-Za-z]{2}[A-Za-z0-9]{3}[0-9]{7}").matches(it) }
+
+                    if (isrc == null && musicBrainzIsrc != null) {
+                        isrc = musicBrainzIsrc
+                        val byIsrc = attempt {
+                            val response = client.get("https://api.credits.fm/v1/isrc/" + musicBrainzIsrc) {
+                                if (creditsFmApiKey.isNotBlank()) header("x-api-key", creditsFmApiKey.trim())
+                                parameter("contribute", "false")
+                            }
+                            check(response.status.value in 200..299) { "Credits.fm ISRC lookup failed" }
+                            Json.parseToJsonElement(response.bodyAsText())
+                        }.getOrNull()
+                        if (byIsrc != null) addAll(SongCreditsParser.fromCreditsFm(byIsrc))
+
+                        val graph = attempt {
+                            val response = client.get("https://api.credits.fm/v1/graph/isrc/" + musicBrainzIsrc) {
+                                if (creditsFmApiKey.isNotBlank()) header("x-api-key", creditsFmApiKey.trim())
+                                parameter("depth", 2)
+                                parameter("people", 1)
+                            }
+                            check(response.status.value in 200..299) { "Credits.fm graph lookup failed" }
+                            Json.parseToJsonElement(response.bodyAsText())
+                        }.getOrNull()
+                        if (graph != null) addAll(SongCreditsParser.fromCreditsFm(graph))
+                    }
+                }'''
+    if old_mb_add not in repository_text:
+        raise SystemExit("MusicBrainz recording credit merge marker not found")
+    repository_text = repository_text.replace(old_mb_add, new_mb_add, 1)
+    repository.write_text(repository_text, encoding="utf-8")
 
     updater = root / "app/src/main/java/com/music/bitchord/data/AppUpdateChecker.kt"
     replace_once(
