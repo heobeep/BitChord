@@ -27,8 +27,22 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ env.SOURCE_COMMIT_SHA }}
+      - name: Verify this is the latest Credits build
+        id: latest-build
+        if: github.event_name == 'workflow_run'
+        shell: bash
+        run: |
+          CURRENT_SHA="$(git ls-remote origin refs/heads/song-credits-apk | awk '{print $1}')"
+          if [ "$SOURCE_COMMIT_SHA" != "$CURRENT_SHA" ]; then
+            echo "current=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping stale build $SOURCE_COMMIT_SHA; branch head is $CURRENT_SHA."
+          else
+            echo "current=true" >> "$GITHUB_OUTPUT"
+          fi
+
 
       - name: Read the app version and prepare release names
+        if: steps.latest-build.outputs.current != 'false'
         id: release-meta
         shell: bash
         run: |
@@ -48,6 +62,7 @@ jobs:
           echo "Preparing $TAG from $SOURCE_COMMIT_SHA"
 
       - name: Check whether this version is already published
+        if: steps.latest-build.outputs.current != 'false'
         id: release-check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -61,6 +76,7 @@ jobs:
           fi
 
       - name: Download the APK from the successful build run
+        if: steps.latest-build.outputs.current != 'false'
         if: steps.release-check.outputs.exists == 'false'
         uses: actions/download-artifact@v4
         with:
@@ -70,6 +86,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Verify and prepare release files
+        if: steps.latest-build.outputs.current != 'false'
         if: steps.release-check.outputs.exists == 'false'
         shell: bash
         env:
@@ -88,6 +105,7 @@ jobs:
           ls -lh release-assets/
 
       - name: Create the GitHub release and attach the APK
+        if: steps.latest-build.outputs.current != 'false'
         if: steps.release-check.outputs.exists == 'false'
         uses: softprops/action-gh-release@v2
         with:
