@@ -41,7 +41,7 @@ NEW_CREDITS_FM = r'''    /**
         fun add(role: String?, rawName: String?) {
             if (role == null || rawName.isNullOrBlank()) return
             cleanCreditNames(rawName).forEach { clean ->
-                val key = "\${role.lowercase()}|\${clean.lowercase()}"
+                val key = "${role.lowercase()}|${clean.lowercase()}"
                 if (!result.containsKey(key)) result[key] = SongCredit(role, clean)
             }
         }
@@ -126,10 +126,10 @@ def main() -> None:
     text = parser_path.read_text(encoding="utf-8")
     text = replace_section(text, PARSER_START, PARSER_END, NEW_CREDITS_FM)
     old = '''            val clean = name.trim()
-            val key = "\${label.lowercase()}|\${clean.lowercase()}"
+            val key = "${label.lowercase()}|${clean.lowercase()}"
             if (!result.containsKey(key)) result[key] = SongCredit(label, clean)'''
     new = '''            cleanCreditNames(name).forEach { clean ->
-                val key = "\${label.lowercase()}|\${clean.lowercase()}"
+                val key = "${label.lowercase()}|${clean.lowercase()}"
                 if (!result.containsKey(key)) result[key] = SongCredit(label, clean)
             }'''
     if old not in text:
