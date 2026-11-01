@@ -910,12 +910,12 @@ fun SettingsScreen(
                     onClick = { onOpenChoice(SettingsChoiceKind.FONT) },
                 )
             }
-            val songInfoCreditsTitle = stringResource(R.string.song_info_and_credits)
+            val songInfoCreditsTitle = stringResource(R.string.song_info_settings_title)
             row(songInfoCreditsTitle, "song info", "youtube", "views", "likes", "credits", "contributors") {
                 SettingsRow(
                     icon = Icons.Rounded.LibraryMusic,
                     title = songInfoCreditsTitle,
-                    subtitle = stringResource(R.string.song_info_and_credits_subtitle),
+                    subtitle = stringResource(R.string.song_info_settings_subtitle),
                     onClick = { onOpenChoice(SettingsChoiceKind.SONG_INFO_CREDITS) },
                 )
             }
@@ -2692,7 +2692,7 @@ enum class SettingsChoiceKind(@param:StringRes val title: Int) {
     AUTOMIX_PERFORMANCE(R.string.automix_performance),
     BIT_PERFECT(R.string.bit_perfect_output),
     FONT(R.string.font),
-    SONG_INFO_CREDITS(R.string.song_info_and_credits),
+    SONG_INFO_CREDITS(R.string.song_info_settings_title),
 }
 
 /** The main page's list of categories: a glyph and a name each, and a chevron into it. */
@@ -2739,10 +2739,10 @@ fun SettingsChoicePage(
                 val selectedInfoFields by AppSettings.songInfoFields.collectAsStateWithLifecycle()
                 val selectedCreditFields by AppSettings.songCreditFields.collectAsStateWithLifecycle()
 
-                SettingsGroup(footer = stringResource(R.string.youtube_song_info_footer), topSpacing = 0.dp) {
+                SettingsGroup(footer = stringResource(R.string.song_info_settings_youtube_footer), topSpacing = 0.dp) {
                     SettingsRow(
-                        title = stringResource(R.string.youtube_song_info),
-                        subtitle = stringResource(R.string.youtube_song_info_subtitle),
+                        title = stringResource(R.string.song_info_settings_youtube_enabled),
+                        subtitle = stringResource(R.string.song_info_settings_youtube_subtitle),
                         trailing = {
                             IosSwitch(checked = showYoutubeInfo, onCheckedChange = AppSettings::setShowYoutubeSongInfo)
                         },
@@ -2750,7 +2750,7 @@ fun SettingsChoicePage(
                     )
                     if (showYoutubeInfo) {
                         Text(
-                            text = stringResource(R.string.song_info_fields_section),
+                            text = stringResource(R.string.song_info_settings_fields_section),
                             modifier = Modifier.padding(start = ROW_INSET, top = 8.dp, bottom = 10.dp),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -2772,10 +2772,10 @@ fun SettingsChoicePage(
                     }
                 }
 
-                SettingsGroup(footer = stringResource(R.string.song_credits_footer), topSpacing = 16.dp) {
+                SettingsGroup(footer = stringResource(R.string.song_info_settings_credits_footer), topSpacing = 16.dp) {
                     SettingsRow(
-                        title = stringResource(R.string.song_credits),
-                        subtitle = stringResource(R.string.song_credits_subtitle),
+                        title = stringResource(R.string.song_info_settings_credits_enabled),
+                        subtitle = stringResource(R.string.song_info_settings_credits_subtitle),
                         trailing = {
                             IosSwitch(checked = showCredits, onCheckedChange = AppSettings::setShowSongCredits)
                         },
@@ -2783,25 +2783,25 @@ fun SettingsChoicePage(
                     )
                     if (showCredits) {
                         Text(
-                            text = stringResource(R.string.song_credit_fields_section),
+                            text = stringResource(R.string.song_info_settings_credit_roles_section),
                             modifier = Modifier.padding(start = ROW_INSET, top = 8.dp, bottom = 10.dp),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         SongCreditField.entries.forEach { field ->
                             val label = when (field) {
-                                SongCreditField.PERFORMERS -> R.string.song_credit_performers
-                                SongCreditField.MUSICIANS -> R.string.song_credit_musicians
-                                SongCreditField.SONGWRITERS -> R.string.song_credit_songwriters
-                                SongCreditField.COMPOSERS -> R.string.song_credit_composers
-                                SongCreditField.PRODUCERS -> R.string.song_credit_producers
-                                SongCreditField.ARRANGERS -> R.string.song_credit_arrangers
-                                SongCreditField.RECORDING_ENGINEERS -> R.string.song_credit_recording_engineers
-                                SongCreditField.MIXING_ENGINEERS -> R.string.song_credit_mixing_engineers
-                                SongCreditField.MASTERING_ENGINEERS -> R.string.song_credit_mastering_engineers
-                                SongCreditField.PUBLISHING -> R.string.song_credit_publishing
-                                SongCreditField.VOCALS -> R.string.song_credit_vocals
-                                SongCreditField.OTHER -> R.string.song_credit_other
+                                SongCreditField.PERFORMERS -> R.string.song_info_settings_role_performers
+                                SongCreditField.MUSICIANS -> R.string.song_info_settings_role_musicians
+                                SongCreditField.SONGWRITERS -> R.string.song_info_settings_role_songwriters
+                                SongCreditField.COMPOSERS -> R.string.song_info_settings_role_composers
+                                SongCreditField.PRODUCERS -> R.string.song_info_settings_role_producers
+                                SongCreditField.ARRANGERS -> R.string.song_info_settings_role_arrangers
+                                SongCreditField.RECORDING_ENGINEERS -> R.string.song_info_settings_role_recording_engineers
+                                SongCreditField.MIXING_ENGINEERS -> R.string.song_info_settings_role_mixing_engineers
+                                SongCreditField.MASTERING_ENGINEERS -> R.string.song_info_settings_role_mastering_engineers
+                                SongCreditField.PUBLISHING -> R.string.song_info_settings_role_publishing
+                                SongCreditField.VOCALS -> R.string.song_info_settings_role_vocals
+                                SongCreditField.OTHER -> R.string.song_info_settings_role_other
                             }
                             SettingsSubRow(
                                 title = stringResource(label),
