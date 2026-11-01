@@ -166,6 +166,31 @@ def main() -> None:
     )
 
     gradle = root / "app/build.gradle.kts"
+    # Use the dedicated key restored by CI, not AGP's implicit per-run debug key.
+    # The benchmark build is the distributable Credits build, so its signature
+    # must stay stable across CI runs for Android to accept updates.
+    stable_signing = """    signingConfigs {
+        create("creditsStable") {
+            storeFile = rootProject.file(".ci/credits-signing.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
+"""
+    replace_once(
+        gradle,
+        "    buildTypes {\\n",
+        stable_signing + "    buildTypes {\\n",
+        "permanent Credits signing configuration",
+    )
+    replace_once(
+        gradle,
+        '            signingConfig = signingConfigs.getByName("debug")',
+        '            signingConfig = signingConfigs.getByName("creditsStable")',
+        "benchmark APK permanent signing",
+    )
     replace_once(
         gradle,
         r'        buildConfigField("String", "UPDATE_APK_PREFIX", "\"BitChord-\"")',
