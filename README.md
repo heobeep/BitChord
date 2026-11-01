@@ -133,7 +133,7 @@ Visit the [upstream BitChord repository](https://github.com/kushagrasinghx/BitCh
 
 ## 🛠️ Development & contributions
 
-This repository contains the BitChord Credits fork and its build workflow. The automated Android build is defined in [`.github/workflows/song-credits-apk.yml`](.github/workflows/song-credits-apk.yml); the native credits patch is applied by [`scripts/build-song-credits/apply.py`](scripts/build-song-credits/apply.py).
+This repository contains the BitChord Credits fork and its build workflow. The automated Android build is defined in [build workflow](https://github.com/heobeep/BitChord/blob/song-credits-apk/.github/workflows/song-credits-apk.yml); the native credits patch is applied by [native patch script](https://github.com/heobeep/BitChord/blob/song-credits-apk/scripts/build-song-credits/apply.py).
 
 Bug reports and suggestions for the Credits-specific functionality are welcome through [GitHub Issues](https://github.com/heobeep/BitChord/issues). Please include your Android version, device architecture, app version, and steps to reproduce the issue. Do not post API keys, passwords, or private account data.
 
