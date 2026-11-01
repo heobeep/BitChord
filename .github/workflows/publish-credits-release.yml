@@ -76,8 +76,7 @@ jobs:
           fi
 
       - name: Download the APK from the successful build run
-        if: steps.latest-build.outputs.current != 'false'
-        if: steps.release-check.outputs.exists == 'false'
+        if: steps.latest-build.outputs.current != 'false' && steps.release-check.outputs.exists == 'false'
         uses: actions/download-artifact@v4
         with:
           name: BitChord-Credits-arm64-optimized-apk
@@ -86,8 +85,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Verify and prepare release files
-        if: steps.latest-build.outputs.current != 'false'
-        if: steps.release-check.outputs.exists == 'false'
+        if: steps.latest-build.outputs.current != 'false' && steps.release-check.outputs.exists == 'false'
         shell: bash
         env:
           APK_NAME: ${{ steps.release-meta.outputs.apk_name }}
@@ -105,8 +103,7 @@ jobs:
           ls -lh release-assets/
 
       - name: Create the GitHub release and attach the APK
-        if: steps.latest-build.outputs.current != 'false'
-        if: steps.release-check.outputs.exists == 'false'
+        if: steps.latest-build.outputs.current != 'false' && steps.release-check.outputs.exists == 'false'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.release-meta.outputs.tag }}
