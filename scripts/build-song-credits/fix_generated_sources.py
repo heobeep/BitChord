@@ -236,19 +236,77 @@ def main() -> None:
     if "val showYoutubeInfo by AppSettings.showYoutubeSongInfo" not in dialog:
         dialog = dialog[:function_body + 1] + dialog_preferences + dialog[function_body + 1:]
 
-    load_call = "SongInfoRepository.load(song)"
-    if load_call not in dialog:
-        interesting = [
-            (index + 1, line)
-            for index, line in enumerate(dialog.splitlines())
-            if any(token in line.lower() for token in ("produceState", "songinfo", "song info", "youtube", "metadata", "val info", "val credits", "creditgroups"))
-        ]
-        excerpt = "\\n".join(f"{number}: {line}" for number, line in interesting[:100])
-        raise SystemExit("Song Info YouTube metadata load call not found. Generated dialog excerpt:\\n" + excerpt)
+    # The same repository call supplies both metadata and credits. Refresh it
+    # when either enabled panel or its selected fields change, and skip the
+    # request entirely when both panels have nothing selected.
+    state_match = re.search(
+        r"(val info by produceState<SongInfo\\?>\\()([^)]*)(\\)\\s*\\{)",
+        dialog,
+    )
+    if state_match is None:
+        raise SystemExit("Song Info produceState declaration not found")
+    state_keys = (
+        "showYoutubeInfo",
+        "selectedSongInfoFields",
+        "showSongCredits",
+        "selectedSongCreditFields",
+    )
+    key_text = state_match.group(2)
+    for key in state_keys:
+        if key not in key_text:
+            key_text += ", " + key
+    dialog = dialog[:state_match.start(2)] + key_text + dialog[state_match.end(2):]
+
+    load_marker = "SongInfoRepository.load("
+    load_pos = dialog.find(load_marker)
+    if load_pos < 0:
+        raise SystemExit("Song Info repository load call not found")
+    open_pos = load_pos + len("SongInfoRepository.load")
+    depth = 0
+    quoted = False
+    escaped = False
+    close_pos = -1
+    for index in range(open_pos, len(dialog)):
+        char = dialog[index]
+        if quoted:
+            if escaped:
+                escaped = False
+            elif char == "\\\\":
+                escaped = True
+            elif char == '"':
+                quoted = False
+        elif char == '"':
+            quoted = True
+        elif char == '(':
+            depth += 1
+        elif char == ')':
+            depth -= 1
+            if depth == 0:
+                close_pos = index
+                break
+    if close_pos < 0:
+        raise SystemExit("Could not find the end of SongInfoRepository.load call")
+
+    call = dialog[load_pos:close_pos + 1]
+    gated_call = (
+        "if ((showYoutubeInfo && selectedSongInfoFields.isNotEmpty()) || "
+        "(showSongCredits && selectedSongCreditFields.isNotEmpty())) { "
+        + call
+        + " } else null"
+    )
+    dialog = dialog[:load_pos] + gated_call + dialog[close_pos + 1:]
+
+    # The credits heading and empty-state row belong to the selected visible
+    # groups, not merely to the presence of raw provider credits.
     dialog = dialog.replace(
-        load_call,
-        "if (showYoutubeInfo && selectedSongInfoFields.isNotEmpty()) "
-        + "SongInfoRepository.load(song) else null",
+        "if (creditGroups.isNotEmpty()) {",
+        "if (showSongCredits && creditGroups.any { (role, _) -> "
+        "SongCreditField.fromRole(role) in selectedSongCreditFields }) {",
+        1,
+    )
+    dialog = dialog.replace(
+        "else if (creditGroups.isEmpty()) {",
+        "else if (showSongCredits && creditGroups.isEmpty()) {",
         1,
     )
 
