@@ -28,7 +28,9 @@ NEW_CREDITS_FM = r'''    /**
                     .trim(',', ';', ':', '·', '•', '|')
             }
             .filter { candidate ->
+                val attribution = candidate.lowercase()
                 candidate.any(Char::isLetter) &&
+                    attribution !in setOf("discogs", "mb", "musicbrainz", "music brainz", "credits.fm", "creditsfm") &&
                     !Regex("""(?i)^(?:[A-Z]{2}[A-Z0-9]{3}\d{7}|[0-9a-f]{8}-[0-9a-f-]{27,})$""")
                         .matches(candidate)
             }
@@ -51,6 +53,15 @@ NEW_CREDITS_FM = r'''    /**
             "isni", "isni_code", "isrc", "iswc", "upc",
             "uuid", "mbid", "credits_id", "entity_id",
             "source_ids", "identifiers", "type_id", "type-id",
+            // These are provenance/transport metadata, not contributor names.
+            // Walking them with an inherited role caused labels like "discogs"
+            // and "mb" to appear as if they were people in the credits list.
+            "source", "sources", "source_name", "source_type", "source_label",
+            "credit_source", "data_source", "provider", "providers",
+            "catalog", "catalogue", "url", "uri", "href", "link", "links",
+            "external_ids", "external_url", "resource_url", "metadata",
+            "created_at", "updated_at", "confidence", "match_type",
+            "notes", "comment", "description",
         )
         val nameKeys = setOf(
             "name", "display_name", "person_name", "full_name",
@@ -167,20 +178,18 @@ def main() -> None:
                                     textAlign = TextAlign.Start,
                                 )
                                 Spacer(Modifier.height(5.dp))
-                                credits.forEach { credit ->
-                                    Text(
-                                        text = credit.name,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 2.dp),
-                                        style = MaterialTheme.typography.bodyLarge.copy(
-                                            fontSize = 14.sp,
-                                            lineHeight = 19.sp,
-                                        ),
-                                        color = onSurface,
-                                        textAlign = TextAlign.Start,
-                                    )
-                                }
+                                // Keep the credits compact: one wrapped paragraph per
+                                // role, rather than spending a full screen row per person.
+                                Text(
+                                    text = credits.joinToString(" · ") { it.name },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    style = MaterialTheme.typography.bodyLarge.copy(
+                                        fontSize = 14.sp,
+                                        lineHeight = 19.sp,
+                                    ),
+                                    color = onSurface,
+                                    textAlign = TextAlign.Start,
+                                )
                             }
                         }'''
     if old_ui in dialog:
@@ -231,6 +240,24 @@ class SongCreditsNameCleanupTest {
     fun rejectsAnIdentifierWithNoHumanName() {
         assertEquals(emptyList(), SongCreditsParser.cleanCreditNames("00861590127"))
         assertEquals(emptyList(), SongCreditsParser.cleanCreditNames("IPI: 00861590127"))
+    }
+
+    @Test
+    fun rejectsSourceAttributionLabelsAsContributorNames() {
+        assertEquals(emptyList(), SongCreditsParser.cleanCreditNames("discogs"))
+        assertEquals(emptyList(), SongCreditsParser.cleanCreditNames("mb"))
+        assertEquals(emptyList(), SongCreditsParser.cleanCreditNames("MusicBrainz"))
+    }
+
+    @Test
+    fun doesNotTurnSourceAndProviderMetadataIntoPeople() {
+        val input = kotlinx.serialization.json.Json.parseToJsonElement(
+            """{"credits":[{"role":"Performer","name":"Michael Jackson","source":"discogs","provider":"mb"}]}""",
+        )
+        assertEquals(
+            listOf(SongCredit("Performer", "Michael Jackson")),
+            SongCreditsParser.fromCreditsFm(input),
+        )
     }
 
     @Test
