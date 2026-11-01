@@ -107,6 +107,101 @@ def main() -> None:
     dialog = root / "app/src/main/java/com/music/bitchord/ui/components/SongInfoDialog.kt"
     replace_once(
         dialog,
+        "import com.music.bitchord.data.model.Song\\n",
+        """import com.music.bitchord.data.model.Song
+import com.music.bitchord.data.settings.AppSettings
+import com.music.bitchord.data.settings.SongInfoField
+import com.music.bitchord.data.settings.SongCreditField
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+""",
+        "Song Info & Credits preference imports",
+    )
+    replace_once(
+        dialog,
+        """internal fun SongInfoDialog(song: Song, onDismiss: () -> Unit) {
+    var retry by remember(song.videoId) { mutableIntStateOf(0) }
+    val info by produceState<SongInfo?>(null, song, retry) {
+        value = null
+        value = SongInfoRepository.load(song)
+    }
+    val onSurface = MaterialTheme.colorScheme.onSurface
+""",
+        """internal fun SongInfoDialog(song: Song, onDismiss: () -> Unit) {
+    val showYoutubeInfo by AppSettings.showYoutubeSongInfo.collectAsStateWithLifecycle()
+    val showCredits by AppSettings.showRecordingCredits.collectAsStateWithLifecycle()
+    val selectedInfoFields by AppSettings.songInfoFields.collectAsStateWithLifecycle()
+    val selectedCreditFields by AppSettings.songCreditFields.collectAsStateWithLifecycle()
+    var retry by remember(song.videoId) { mutableIntStateOf(0) }
+    val info by produceState<SongInfo?>(null, song, retry, showYoutubeInfo, selectedInfoFields) {
+        value = null
+        if (showYoutubeInfo && selectedInfoFields.isNotEmpty()) {
+            value = SongInfoRepository.load(song)
+        }
+    }
+    val onSurface = MaterialTheme.colorScheme.onSurface
+""",
+        "connect Song Info & Credits preferences to the dialog",
+    )
+    replace_once(
+        dialog,
+        """                val rows = listOf(
+                    R.string.song_info_album to (info?.album ?: song.albumName),
+                    R.string.song_info_release_date to (info?.releaseDate ?: info?.releaseYear),
+                    R.string.song_info_views to info?.views?.let(::compactCount),
+                    R.string.song_info_likes to info?.likes,
+                    R.string.song_info_comments to info?.comments,
+                )
+                rows.forEachIndexed { index, (label, value) ->
+                    if (index > 0) AlertRule(Modifier.padding(start = 16.dp))
+                    SongInfoRow(
+                        label = stringResource(label),
+                        value = value ?: unavailable.takeIf { info != null },
+                    )
+                }
+""",
+        """                val rows = buildList {
+                    if (SongInfoField.ALBUM in selectedInfoFields) add(R.string.song_info_album to (info?.album ?: song.albumName))
+                    if (SongInfoField.RELEASE_DATE in selectedInfoFields) add(R.string.song_info_release_date to (info?.releaseDate ?: info?.releaseYear))
+                    if (SongInfoField.VIEWS in selectedInfoFields) add(R.string.song_info_views to info?.views?.let(::compactCount))
+                    if (SongInfoField.LIKES in selectedInfoFields) add(R.string.song_info_likes to info?.likes)
+                    if (SongInfoField.COMMENTS in selectedInfoFields) add(R.string.song_info_comments to info?.comments)
+                }
+                if (showYoutubeInfo) {
+                    rows.forEachIndexed { index, (label, value) ->
+                        if (index > 0) AlertRule(Modifier.padding(start = 16.dp))
+                        SongInfoRow(
+                            label = stringResource(label),
+                            value = value ?: unavailable.takeIf { info != null },
+                        )
+                    }
+                    if (info?.failed == true) {
+                        Text(
+                            text = stringResource(R.string.song_info_error),
+                            modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 10.dp),
+                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 15.sp),
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+""",
+        "apply selected YouTube metadata fields",
+    )
+    replace_once(
+        dialog,
+        """                if (info?.failed == true) {
+                    Text(
+                        text = stringResource(R.string.song_info_error),
+                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 10.dp),
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 15.sp),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+""",
+        "",
+        "avoid duplicate Song Info error message",
+    )
+    replace_once(
+        dialog,
         r'''                        creditGroups.forEach { (role, credits) ->
                             SongInfoRow(
                                 label = role,
@@ -114,7 +209,11 @@ def main() -> None:
                             )
                         }
 ''',
-        r'''                        creditGroups.forEachIndexed { index, (role, credits) ->
+        r'''                        creditGroups
+                            .filterKeys { role -> SongCreditField.fromRole(role) in selectedCreditFields }
+                            .takeIf { showCredits }
+                            ?.entries
+                            ?.forEachIndexed { index, (role, credits) ->
                             if (index > 0) AlertRule(Modifier.padding(start = 16.dp))
                             Column(
                                 Modifier
