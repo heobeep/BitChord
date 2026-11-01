@@ -7,5 +7,6 @@ if len(PAYLOAD) != 14276 or hashlib.sha256(PAYLOAD.encode("ascii")).hexdigest() 
 source = gzip.decompress(base64.b64decode(PAYLOAD)).decode("utf-8")
 if hashlib.sha256(source.encode("utf-8")).hexdigest() != "003961af567095067f8a8d373609b62935e77022ae4c49b3da1240922367d408":
     raise SystemExit("Decoded patch source failed integrity check")
+source = source.replace(".github/workflows/song-credits-apk.yml", ".github/workflows/song-credits-source-check.yml")
 namespace = {"__name__": "__main__", "__file__": str(Path(__file__).resolve())}
 exec(compile(source, "apply_song_credits.py", "exec"), namespace)
