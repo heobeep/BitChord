@@ -40,21 +40,25 @@ jobs:
             ln -s android-37.0 "$ANDROID_HOME/platforms/android-37"
           fi
 
+      - name: Restore the stable debug signing key (when configured)
+        env:
+          DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$DEBUG_KEYSTORE_BASE64" ]; then
+            mkdir -p ~/.android
+            printf '%s' "$DEBUG_KEYSTORE_BASE64" | base64 -d > ~/.android/debug.keystore
+            echo "Stable debug signing key restored."
+          else
+            echo "::warning::DEBUG_KEYSTORE_BASE64 is not configured; this build will use a temporary debug key."
+          fi
+
       - name: Apply the native Song Credits source patch
         run: python3 scripts/build-song-credits/apply.py --repo .
 
-      - name: Temporary inspect generated credits patch
-        run: |
-          echo '=== GENERATED DIFF FILES ==='
-          git diff --name-only
-          echo '=== CREDIT RELATED SEARCH ==='
-          grep -RInE 'Credits\.fm|credits\.fm|MusicBrainz|Song Credits|songCredits|composer|publisher|songwriter' app/src shared/src sharedUi/src --include='*.kt' | head -n 240 || true
-          echo '=== RELEVANT GENERATED SOURCE DIFF ==='
-          git diff --color=never -- app/src/main/java/com/music/bitchord/ui/components/SongInfoDialog.kt shared/src/jvmSharedMain/kotlin/com/music/bitchord/data/SongInfoRepository.kt | head -n 1600
       - name: Run shared metadata tests and build the optimized phone APK
         run: |
           chmod +x ./gradlew
-          ./gradlew --no-daemon :shared:jvmTest :app:assembleCreditsBenchmark -Pbitchord.bundleWear=false
+          ./gradlew --no-daemon :shared:jvmTest :app:testCreditsBenchmarkUnitTest :app:assembleCreditsBenchmark -Pbitchord.bundleWear=false
 
       - name: Verify the optimized phone APK for ARM64 devices
         run: |
