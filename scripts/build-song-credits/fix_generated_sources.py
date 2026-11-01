@@ -220,17 +220,19 @@ def main() -> None:
         if import_line not in dialog:
             dialog = dialog.replace(package_line, package_line + import_line + "\\n", 1)
 
-    dialog_signature = "internal fun SongInfoDialog(song: Song, onDismiss: () -> Unit) {\\n"
-    dialog_preferences = (
-        dialog_signature
-        + "    val showYoutubeInfo by AppSettings.showYoutubeSongInfo.collectAsStateWithLifecycle()\\n"
-        + "    val showSongCredits by AppSettings.showSongCredits.collectAsStateWithLifecycle()\\n"
-        + "    val selectedSongInfoFields by AppSettings.songInfoFields.collectAsStateWithLifecycle()\\n"
-        + "    val selectedSongCreditFields by AppSettings.songCreditFields.collectAsStateWithLifecycle()\\n"
-    )
-    if dialog_signature not in dialog:
-        raise SystemExit("Song Info dialog function marker not found")
-    dialog = dialog.replace(dialog_signature, dialog_preferences, 1)
+    dialog_function = re.search(r"\\bfun\\s+SongInfoDialog\\s*\\(", dialog)
+    if dialog_function is None:
+        raise SystemExit("Song Info dialog composable declaration not found")
+    function_body = dialog.find("{", dialog_function.end())
+    if function_body < 0:
+        raise SystemExit("Song Info dialog composable body not found")
+    dialog_preferences = """\\n    val showYoutubeInfo by AppSettings.showYoutubeSongInfo.collectAsStateWithLifecycle()
+    val showSongCredits by AppSettings.showSongCredits.collectAsStateWithLifecycle()
+    val selectedSongInfoFields by AppSettings.songInfoFields.collectAsStateWithLifecycle()
+    val selectedSongCreditFields by AppSettings.songCreditFields.collectAsStateWithLifecycle()
+"""
+    if "val showYoutubeInfo by AppSettings.showYoutubeSongInfo" not in dialog:
+        dialog = dialog[:function_body + 1] + dialog_preferences + dialog[function_body + 1:]
 
     old_loader = """    val info by produceState<SongInfo?>(null, song, retry) {
         value = null
