@@ -58,6 +58,9 @@ jobs:
       - name: Apply Credits display cleanup and fork updater fixes
         run: python3 scripts/build-song-credits/finalize.py --repo .
 
+      - name: Normalize contributor names and improve credits
+        run: python3 scripts/build-song-credits/fix_generated_sources.py --repo .
+
       - name: Run shared metadata tests and build the optimized phone APK
         run: |
           chmod +x ./gradlew
