@@ -96,8 +96,8 @@ _credits_updater.write_text(_updater_text, encoding="utf-8")
 # Release tags are "credits-vX.Y", not just "vX.Y". Extract the numeric
 # version suffix so the in-app updater can compare the fork's releases.
 _updater_text = _credits_updater.read_text(encoding="utf-8")
-_old_version_parse = '            latest = tag.removePrefix("v")'
-_new_version_parse = '''            latest = tag.substringAfterLast('v')
+_old_version_parse = '            val latest = tag.removePrefix("v")'
+_new_version_parse = '''            val latest = tag.substringAfterLast('v')
                 .takeIf { it.firstOrNull()?.isDigit() == true }
                 ?: tag.removePrefix("v")'''
 if _old_version_parse in _updater_text:
@@ -110,8 +110,8 @@ _credits_updater.write_text(_updater_text, encoding="utf-8")
 # ARM64 split from a universal APK using the expected "_arm64-v8a" suffix.
 _credits_gradle = _credits_repo / "app/build.gradle.kts"
 _gradle_text = _credits_gradle.read_text(encoding="utf-8")
-_old_prefix = r'buildConfigField("String", "UPDATE_APK_PREFIX", "\\\"BitChord-\\\"")'
-_new_prefix = r'buildConfigField("String", "UPDATE_APK_PREFIX", "\\\"BitChord-Credits-\\\"")'
+_old_prefix = r'buildConfigField("String", "UPDATE_APK_PREFIX", "\"BitChord-\"")'
+_new_prefix = r'buildConfigField("String", "UPDATE_APK_PREFIX", "\"BitChord-Credits-\"")'
 if _old_prefix in _gradle_text:
     _gradle_text = _gradle_text.replace(_old_prefix, _new_prefix, 1)
 elif "UPDATE_APK_PREFIX" not in _gradle_text or "BitChord-Credits-" not in _gradle_text:
