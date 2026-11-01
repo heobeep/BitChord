@@ -179,9 +179,11 @@ def main() -> None:
                                 }
                             }
                         }'''
-    if old_ui not in dialog:
+    if old_ui in dialog:
+        dialog = dialog.replace(old_ui, new_ui, 1)
+    elif "creditGroups.forEachIndexed { index, (role, credits) ->" not in dialog:
         raise SystemExit("Song Info credits UI marker not found")
-    dialog_path.write_text(dialog.replace(old_ui, new_ui, 1), encoding="utf-8")
+    dialog_path.write_text(dialog, encoding="utf-8")
 
     tests_path = root / "shared/src/jvmTest/kotlin/com/music/bitchord/data/SongCreditsNameCleanupTest.kt"
     tests_path.parent.mkdir(parents=True, exist_ok=True)
