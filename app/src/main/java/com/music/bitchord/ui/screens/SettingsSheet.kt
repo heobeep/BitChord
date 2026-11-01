@@ -2735,7 +2735,7 @@ fun SettingsChoicePage(
         when (choice) {
             SettingsChoiceKind.SONG_INFO_CREDITS -> {
                 val showYoutubeInfo by AppSettings.showYoutubeSongInfo.collectAsStateWithLifecycle()
-                val showCredits by AppSettings.showSongCredits.collectAsStateWithLifecycle()
+                val showCredits by AppSettings.showRecordingCredits.collectAsStateWithLifecycle()
                 val selectedInfoFields by AppSettings.songInfoFields.collectAsStateWithLifecycle()
                 val selectedCreditFields by AppSettings.songCreditFields.collectAsStateWithLifecycle()
 
@@ -2777,9 +2777,9 @@ fun SettingsChoicePage(
                         title = stringResource(R.string.song_info_settings_credits_enabled),
                         subtitle = stringResource(R.string.song_info_settings_credits_subtitle),
                         trailing = {
-                            IosSwitch(checked = showCredits, onCheckedChange = AppSettings::setShowSongCredits)
+                            IosSwitch(checked = showCredits, onCheckedChange = AppSettings::setShowRecordingCredits)
                         },
-                        onClick = { AppSettings.setShowSongCredits(!showCredits) },
+                        onClick = { AppSettings.setShowRecordingCredits(!showCredits) },
                     )
                     if (showCredits) {
                         Text(

@@ -463,7 +463,7 @@ object AppSettings {
     /** YouTube's own song metadata and engagement counts in the Song Info sheet. */
     val showYoutubeSongInfo = MutableStateFlow(true)
     /** Actual recording credits, independently of YouTube's metadata panel. */
-    val showSongCredits = MutableStateFlow(true)
+    val showRecordingCredits = MutableStateFlow(true)
     /** YouTube metadata rows selected for the Song Info sheet. */
     val songInfoFields = MutableStateFlow(SongInfoField.entries.toSet())
     /** Contributor-role groups selected for the Song Info sheet. */
@@ -1012,7 +1012,7 @@ object AppSettings {
             AppFont.valueOf(prefs.getString(KEY_APP_FONT, null) ?: AppFont.DEFAULT.name)
         }.getOrDefault(AppFont.DEFAULT)
         showYoutubeSongInfo.value = prefs.getBoolean(KEY_SHOW_YOUTUBE_SONG_INFO, true)
-        showSongCredits.value = prefs.getBoolean(KEY_SHOW_SONG_CREDITS, true)
+        showRecordingCredits.value = prefs.getBoolean(KEY_SHOW_RECORDING_CREDITS, true)
         songInfoFields.value = prefs.getStringSet(KEY_SONG_INFO_FIELDS, null)
             ?.mapNotNull { stored -> SongInfoField.entries.firstOrNull { it.name == stored } }
             ?.toSet() ?: SongInfoField.entries.toSet()
@@ -1385,9 +1385,9 @@ object AppSettings {
         prefs.edit().putBoolean(KEY_SHOW_YOUTUBE_SONG_INFO, value).apply()
     }
 
-    fun setShowSongCredits(value: Boolean) {
-        showSongCredits.value = value
-        prefs.edit().putBoolean(KEY_SHOW_SONG_CREDITS, value).apply()
+    fun setShowRecordingCredits(value: Boolean) {
+        showRecordingCredits.value = value
+        prefs.edit().putBoolean(KEY_SHOW_RECORDING_CREDITS, value).apply()
     }
 
     fun setSongInfoFieldEnabled(field: SongInfoField, enabled: Boolean) {
@@ -2244,7 +2244,7 @@ object AppSettings {
     private const val KEY_THEME = "theme_mode"
     private const val KEY_APP_FONT = "app_font"
     private const val KEY_SHOW_YOUTUBE_SONG_INFO = "show_youtube_song_info"
-    private const val KEY_SHOW_SONG_CREDITS = "show_song_credits"
+    private const val KEY_SHOW_RECORDING_CREDITS = "show_song_credits"
     private const val KEY_SONG_INFO_FIELDS = "song_info_fields"
     private const val KEY_SONG_CREDIT_FIELDS = "song_credit_fields"
     private const val KEY_AUTOPLAY = "autoplay"

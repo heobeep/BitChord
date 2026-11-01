@@ -229,7 +229,7 @@ def main() -> None:
         raise SystemExit("Song Info dialog composable body not found")
     dialog_preferences = """
     val showYoutubeInfo by AppSettings.showYoutubeSongInfo.collectAsStateWithLifecycle()
-    val showSongCredits by AppSettings.showSongCredits.collectAsStateWithLifecycle()
+    val showRecordingCredits by AppSettings.showRecordingCredits.collectAsStateWithLifecycle()
     val selectedSongInfoFields by AppSettings.songInfoFields.collectAsStateWithLifecycle()
     val selectedSongCreditFields by AppSettings.songCreditFields.collectAsStateWithLifecycle()
 """
@@ -248,7 +248,7 @@ def main() -> None:
     state_keys = (
         "showYoutubeInfo",
         "selectedSongInfoFields",
-        "showSongCredits",
+        "showRecordingCredits",
         "selectedSongCreditFields",
     )
     key_text = state_match.group(2)
@@ -290,7 +290,7 @@ def main() -> None:
     call = dialog[load_pos:close_pos + 1]
     gated_call = (
         "if ((showYoutubeInfo && selectedSongInfoFields.isNotEmpty()) || "
-        "(showSongCredits && selectedSongCreditFields.isNotEmpty())) { "
+        "(showRecordingCredits && selectedSongCreditFields.isNotEmpty())) { "
         + call
         + " } else null"
     )
@@ -300,13 +300,13 @@ def main() -> None:
     # groups, not merely to the presence of raw provider credits.
     dialog = dialog.replace(
         "if (creditGroups.isNotEmpty()) {",
-        "if (showSongCredits && creditGroups.any { (role, _) -> "
+        "if (showRecordingCredits && creditGroups.any { (role, _) -> "
         "SongCreditField.fromRole(role) in selectedSongCreditFields }) {",
         1,
     )
     dialog = dialog.replace(
         "else if (creditGroups.isEmpty()) {",
-        "else if (showSongCredits && creditGroups.isEmpty()) {",
+        "else if (showRecordingCredits && creditGroups.isEmpty()) {",
         1,
     )
 
@@ -328,7 +328,7 @@ def main() -> None:
     old_groups = "                        creditGroups.entries.forEachIndexed { index, (role, credits) ->"
     new_groups = """                        creditGroups.entries
                             .filter { (role, _) ->
-                                showSongCredits && SongCreditField.fromRole(role) in selectedSongCreditFields
+                                showRecordingCredits && SongCreditField.fromRole(role) in selectedSongCreditFields
                             }
                             .forEachIndexed { index, (role, credits) ->"""
     if old_groups not in dialog:
