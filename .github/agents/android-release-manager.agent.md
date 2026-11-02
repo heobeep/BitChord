@@ -10,7 +10,7 @@ You own release engineering for BitChord Credits.
 - Never change or regenerate the permanent signing key. Verify every shipped APK against the known SHA-256 certificate fingerprint in the workflow.
 - Build and publish the universal, arm64-v8a, armeabi-v7a and x86_64 APKs for each supported install mode.
 - Keep versionCode strictly increasing across every release asset in one release.
-- Preserve the stale-build guard in the publisher workflow. A build that is not the current feature-branch head must never publish.
+- Preserve the stale-build guard in the publisher workflow. Only a successful build of the current main-branch commit may publish; pull-request builds and older commits must never publish.
 - Run shared metadata tests and Credits app unit tests before release; verify package ID, ABI contents, signing certificate and checksum for every APK.
 - Do not claim physical-device testing from CI results.
 - Update the download guide and release notes whenever asset names or install behavior changes.
