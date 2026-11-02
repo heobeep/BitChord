@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="560" viewBox="0 0 1600 560" role="img" aria-labelledby="title desc">
+  <title id="title">BitChord Credits — discover the people behind the music</title>
+  <desc id="desc">A midnight plum album sleeve with a large violet vinyl record, delicate orbit lines and the BitChord Credits wordmark.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#100e18"/>
+      <stop offset=".52" stop-color="#191324"/>
+      <stop offset="1" stop-color="#090b12"/>
+    </linearGradient>
+    <radialGradient id="violetGlow" cx="78%" cy="48%" r="62%">
+      <stop offset="0" stop-color="#8b5cf6" stop-opacity=".55"/>
+      <stop offset=".42" stop-color="#6437a8" stop-opacity=".2"/>
+      <stop offset="1" stop-color="#17111f" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="record" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#40305c"/>
+      <stop offset=".26" stop-color="#171622"/>
+      <stop offset=".54" stop-color="#352448"/>
+      <stop offset=".78" stop-color="#11131c"/>
+      <stop offset="1" stop-color="#4d326e"/>
+    </linearGradient>
+    <linearGradient id="label" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#d8c5ff"/>
+      <stop offset=".52" stop-color="#9c77ef"/>
+      <stop offset="1" stop-color="#8de0cc"/>
+    </linearGradient>
+    <linearGradient id="type" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#fbf7ef"/>
+      <stop offset=".62" stop-color="#e8dcff"/>
+      <stop offset="1" stop-color="#b69af7"/>
+    </linearGradient>
+    <filter id="blur" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="30"/>
+    </filter>
+    <pattern id="grain" width="110" height="110" patternUnits="userSpaceOnUse">
+      <circle cx="9" cy="14" r=".8" fill="#fff" opacity=".16"/>
+      <circle cx="49" cy="71" r=".7" fill="#fff" opacity=".1"/>
+      <circle cx="91" cy="39" r=".6" fill="#fff" opacity=".12"/>
+      <circle cx="74" cy="101" r=".75" fill="#fff" opacity=".09"/>
+    </pattern>
+    <clipPath id="discClip"><circle cx="1194" cy="284" r="338"/></clipPath>
+  </defs>
+
+  <rect width="1600" height="560" rx="26" fill="url(#bg)"/>
+  <rect width="1600" height="560" rx="26" fill="url(#violetGlow)"/>
+  <ellipse cx="1335" cy="292" rx="460" ry="340" fill="#7d4fc8" opacity=".12" filter="url(#blur)"/>
+
+  <g opacity=".8">
+    <path d="M0 447 C210 395 315 510 514 445 S850 375 1020 438" stroke="#d4b7ff" stroke-opacity=".16" fill="none"/>
+    <path d="M0 464 C208 410 322 528 528 462 S846 394 1030 453" stroke="#94dfd0" stroke-opacity=".13" fill="none"/>
+    <path d="M0 481 C214 432 332 543 541 480 S860 420 1040 470" stroke="#b995fa" stroke-opacity=".1" fill="none"/>
+  </g>
+
+  <g clip-path="url(#discClip)">
+    <circle cx="1194" cy="284" r="338" fill="url(#record)" stroke="#c7a7ff" stroke-opacity=".42" stroke-width="2"/>
+    <g fill="none" stroke="#d9c7ff" stroke-opacity=".17">
+      <circle cx="1194" cy="284" r="317" stroke-width="2"/>
+      <circle cx="1194" cy="284" r="305"/>
+      <circle cx="1194" cy="284" r="293"/>
+      <circle cx="1194" cy="284" r="281"/>
+      <circle cx="1194" cy="284" r="268"/>
+      <circle cx="1194" cy="284" r="254"/>
+      <circle cx="1194" cy="284" r="241"/>
+      <circle cx="1194" cy="284" r="226"/>
+      <circle cx="1194" cy="284" r="211"/>
+      <circle cx="1194" cy="284" r="194"/>
+      <circle cx="1194" cy="284" r="177"/>
+      <circle cx="1194" cy="284" r="159"/>
+    </g>
+    <circle cx="1194" cy="284" r="135" fill="url(#label)" stroke="#f2eaff" stroke-opacity=".55" stroke-width="2"/>
+    <circle cx="1194" cy="284" r="110" fill="#1d1630" opacity=".92"/>
+    <circle cx="1194" cy="284" r="91" fill="none" stroke="#e6d9ff" stroke-opacity=".32"/>
+    <text x="1194" y="270" fill="#f5efff" font-family="Georgia,serif" font-size="27" text-anchor="middle" letter-spacing="4">SIDE A</text>
+    <text x="1194" y="307" fill="#d7c5ff" font-family="Arial,sans-serif" font-size="11" text-anchor="middle" letter-spacing="3">THE PEOPLE BEHIND IT</text>
+    <circle cx="1194" cy="284" r="7" fill="#0d0b13" stroke="#efe5ff" stroke-opacity=".5"/>
+    <path d="M1170 28 C1300 78 1447 136 1543 260" stroke="#fff" stroke-opacity=".12" stroke-width="3" fill="none"/>
+  </g>
+
+  <path d="M850 96 C1010 -5 1270 5 1467 104 S1593 256 1452 335" stroke="#c6a5ff" stroke-width="2" stroke-opacity=".82" fill="none"/>
+  <path d="M874 116 C1035 18 1283 24 1462 118 S1561 249 1430 326" stroke="#8fe0d1" stroke-width="1" stroke-opacity=".56" fill="none"/>
+  <path d="M918 141 C1070 63 1265 65 1404 134" stroke="#f5e6c9" stroke-width="1" stroke-opacity=".25" fill="none"/>
+
+  <g fill="#e7d6ff">
+    <path d="M1045 80 l5 13 13 5 -13 5 -5 13 -5 -13 -13 -5 13 -5z" opacity=".9"/>
+    <path d="M1505 432 l4 10 10 4 -10 4 -4 10 -4 -10 -10 -4 10 -4z" opacity=".65"/>
+    <circle cx="971" cy="370" r="3" opacity=".75"/>
+    <circle cx="1448" cy="64" r="2" opacity=".8"/>
+    <circle cx="868" cy="245" r="2" opacity=".6"/>
+  </g>
+
+  <g transform="translate(92 78)">
+    <text x="0" y="22" fill="#b9a0f4" font-family="Arial,sans-serif" font-size="13" font-weight="700" letter-spacing="4">AN INDEPENDENT MUSIC PROJECT</text>
+    <text x="0" y="145" fill="url(#type)" font-family="Georgia,serif" font-size="91" font-weight="400" letter-spacing="-4">BitChord</text>
+    <text x="1" y="232" fill="#b69af7" font-family="Georgia,serif" font-size="91" font-style="italic" letter-spacing="-3">Credits.</text>
+    <path d="M5 258 C128 238 244 272 397 245" fill="none" stroke="#9a7be2" stroke-width="3" stroke-linecap="round"/>
+    <text x="4" y="315" fill="#f2ecf8" font-family="Arial,sans-serif" font-size="25" letter-spacing=".4">Discover the people behind the music.</text>
+    <text x="4" y="357" fill="#b6afc7" font-family="Arial,sans-serif" font-size="15" letter-spacing="2">PERFORMERS  ·  WRITERS  ·  PRODUCERS</text>
+    <g transform="translate(4 409)">
+      <rect width="190" height="42" rx="21" fill="#a18ad2" fill-opacity=".13" stroke="#b89af2" stroke-opacity=".6"/>
+      <text x="95" y="26" fill="#e9ddff" font-family="Arial,sans-serif" font-size="12" font-weight="700" letter-spacing="1.4" text-anchor="middle">KEEP YOUR ORIGINAL</text>
+      <rect x="204" width="170" height="42" rx="21" fill="#a0e0d2" fill-opacity=".1" stroke="#9de0d0" stroke-opacity=".55"/>
+      <text x="289" y="26" fill="#cff6ec" font-family="Arial,sans-serif" font-size="12" font-weight="700" letter-spacing="1.4" text-anchor="middle">BUILT FOR LISTENERS</text>
+    </g>
+  </g>
+
+  <rect x="1" y="1" width="1598" height="558" rx="25" fill="none" stroke="#cbb2ff" stroke-opacity=".17" stroke-width="2"/>
+  <rect width="1600" height="560" rx="26" fill="url(#grain)" opacity=".32"/>
+</svg>
