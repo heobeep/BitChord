@@ -114,10 +114,7 @@ class MornyeNativeHost(
         "url.parse" -> parseUrl(args.optString(0), args.optString(1).ifBlank { null })
         "url.query" -> queryEntries(args.opt(0))
         "url.encode" -> encodeQuery(args.opt(0))
-        "encode" -> JSONArray(Base64.decode(
-            Base64.encodeToString(args.optString(0).toByteArray(Charsets.UTF_8), Base64.NO_WRAP),
-            Base64.DEFAULT,
-        ).map { it.code })
+        "encode" -> JSONArray(args.optString(0).toByteArray(Charsets.UTF_8).map { it.toInt() and 0xff })
         "decode" -> String(
             ByteArray(args.optJSONArray(0)?.length() ?: 0) { args.optJSONArray(0)!!.getInt(it).toByte() },
             Charsets.UTF_8,
