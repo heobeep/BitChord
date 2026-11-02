@@ -436,6 +436,52 @@ fun CreditsFmApiKeyAlert(
     # A resolved Credits.fm response can be partial. Query the flat and graph
     # endpoints whenever we have a concrete ISRC, then merge by role + person.
     repository_text = repository.read_text(encoding="utf-8")
+    package_line = "package com.music.bitchord.data\n"
+    for import_line in (
+        "import io.ktor.client.request.post",
+        "import io.ktor.client.request.setBody",
+    ):
+        if import_line not in repository_text:
+            repository_text = repository_text.replace(package_line, package_line + import_line + "\n", 1)
+
+    # Resolve by title + artist when no ISRC was supplied by the player.
+    # Credits.fm performs its own recording identity check before returning ISRC.
+    resolver_marker = "        if (isrc != null && credits.isEmpty()) {"
+    resolver_code = r'''        if (isrc == null && title.isNotBlank() && artist.isNotBlank()) {
+            val resolution = attempt {
+                val response = client.post("https://api.credits.fm/v1/resolve/track") {
+                    header("Content-Type", "application/json")
+                    if (creditsFmApiKey.isNotBlank()) header("x-api-key", creditsFmApiKey.trim())
+                    setBody(
+                        JsonObject(
+                            mapOf(
+                                "name" to JsonPrimitive(title),
+                                "artist" to JsonPrimitive(artist),
+                                "contribute" to JsonPrimitive(false),
+                            ),
+                        ).toString(),
+                    )
+                }
+                check(response.status.value in 200..299) { "Credits.fm track resolution failed" }
+                Json.parseToJsonElement(response.bodyAsText())
+            }.getOrNull()
+
+            if (resolution != null) {
+                val resolvedIsrc = SongCreditsParser.findFirstString(resolution, setOf("isrc"))
+                    ?.uppercase()
+                    ?.takeIf { Regex("^[A-Z]{2}[A-Z0-9]{3}[0-9]{7}$").matches(it) }
+                if (resolvedIsrc != null) {
+                    isrc = resolvedIsrc
+                    addAll(SongCreditsParser.fromCreditsFm(resolution))
+                }
+            }
+        }
+
+'''
+    if resolver_marker not in repository_text:
+        raise SystemExit("Credits.fm track resolver insertion point not found")
+    repository_text = repository_text.replace(resolver_marker, resolver_code + resolver_marker, 1)
+
     repository_text = repository_text.replace(
         "if (isrc != null && credits.isEmpty()) {",
         "if (isrc != null) {",

@@ -506,6 +506,17 @@ class SongCreditsMatchingTest {
     }
 
     @Test
+    fun readsAnIsrcFromANestedCreditsFmTrackResolution() {
+        val response = Json.parseToJsonElement(
+            """{"recording":{"isrc":"INH100000001"},"credits":[]}""",
+        )
+        assertEquals(
+            "INH100000001",
+            SongCreditsParser.findFirstString(response, setOf("isrc")),
+        )
+    }
+
+    @Test
     fun doesNotMatchAnUnrelatedRecordingOrArtist() {
         val response = Json.parseToJsonElement(
             """{"recordings":[{"id":"22222222-2222-4222-8222-222222222222","title":"Different Song","artist-credit":[{"name":"Example Artist"}]}]}""",
