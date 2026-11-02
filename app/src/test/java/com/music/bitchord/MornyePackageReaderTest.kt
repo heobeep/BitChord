@@ -42,6 +42,35 @@ class MornyePackageReaderTest {
     }
 
     @Test
+    fun `accepts the prepared context feature used by JioSaavn`() {
+        val bytes = archive(
+            manifest = manifest().replace(
+                "\"type\": [\"download_provider\"]",
+                "\"type\": [\"metadata_provider\", \"download_provider\"], \"requiredRuntimeFeatures\": [\"preparedContext@1\"]",
+            ),
+            script = "registerExtension({ initialize() {}, searchTracks() { return [] } })",
+        )
+
+        val parsed = MornyePackageReader.read(bytes)
+
+        assertTrue(parsed.manifest.canDownload)
+    }
+
+    @Test
+    fun `rejects runtime features that BitChord has not implemented`() {
+        val bytes = archive(
+            manifest = manifest().replace(
+                "\"type\": [\"download_provider\"]",
+                "\"type\": [\"download_provider\"], \"requiredRuntimeFeatures\": [\"signedSession@1\"]",
+            ),
+            script = "registerExtension({ download() { return {success:false} } })",
+        )
+        assertThrows(MornyePackageException::class.java) {
+            MornyePackageReader.read(bytes)
+        }
+    }
+
+    @Test
     fun `rejects a package with no root entry point`() {
         val bytes = archive(
             manifest = manifest(),

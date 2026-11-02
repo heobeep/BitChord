@@ -6,7 +6,7 @@ BitChord now has a separate native compatibility layer for Mornye download-provi
 
 - Browse the official Mornye extension registry from **Settings → Sources → Mornye extensions**.
 - Install, update and remove supported download-provider packages.
-- Validate `.sflx` / `.spotiflac-ext` package archives, manifest identity, network permissions and optional SHA-256 registry digests.
+- Validate `.sflx` / `.spotiflac-ext` package archives, manifest identity, declared runtime features, network permissions and optional SHA-256 registry digests.
 - Store extension packages in app-private storage and keep writable extension data in a separate directory.
 - Execute `registerExtension()` packages in their own persistent QuickJS runtime.
 - Provide a native host for HTTPS requests restricted to each extension's declared domains, DNS-pinned public destinations, encrypted per-extension key/value storage, credentials, and sandboxed file/download operations.
@@ -20,7 +20,7 @@ This is a first native compatibility implementation, not a guarantee that every 
 
 - The first-party browser currently lists registry entries in the `download` category. Metadata-only and lyrics-only extensions need adapters for their corresponding native interfaces.
 - OAuth login screens and Mornye signed gateway sessions are not implemented yet. Host calls for those features fail explicitly.
-- Download progress callbacks are placeholders in this first adapter. Extensions that require host-to-JavaScript callback re-entry may not work.
+- Download progress callbacks are placeholders in this first adapter. Extensions that require host-to-JavaScript callback re-entry may not work. Basic `file.download()` is supported; the more advanced segmented-download runtime contract is not advertised.
 - Advanced provider-specific decryption, patterned-block transforms, FFmpeg post-processing and DRM are not implemented. Packages requiring them are not compatible yet.
 - Segmented downloads support basic segment concatenation; provider-specific manifests or encryption require dedicated implementations.
 - Playback is based on a completed, validated file for download providers. Growing-file playback is not included in this first version.

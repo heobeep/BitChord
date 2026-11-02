@@ -247,8 +247,11 @@ class MornyeNativeHost(
             result.contentType == "application/octet-stream"
         return JSONObject()
             .put("status", result.status)
+            .put("statusCode", result.status)
             .put("ok", result.status in 200..299)
             .put("statusText", if (result.status in 200..299) "OK" else "HTTP " + result.status)
+            .put("url", result.finalUrl)
+            .put("error", if (result.status in 200..299) JSONObject.NULL else "HTTP " + result.status)
             .put("headers", result.headers)
             .put("body", if (binary) "" else String(result.bytes, Charsets.UTF_8))
             .put("binary", if (binary) Base64.encodeToString(result.bytes, Base64.NO_WRAP) else "")
@@ -259,6 +262,7 @@ class MornyeNativeHost(
         val headers: JSONObject,
         val contentType: String,
         val bytes: ByteArray,
+        val finalUrl: String,
     )
 
     /** Redirects are followed manually so every destination gets re-authorized. */
@@ -326,7 +330,7 @@ class MornyeNativeHost(
                 }
                 val bytes = response.body?.byteStream()?.use { readBounded(it, maxBytes) } ?: ByteArray(0)
                 val type = response.header("Content-Type").orEmpty().substringBefore(';').lowercase(Locale.ROOT)
-                return HttpResult(response.code, responseHeaders, type, bytes)
+                return HttpResult(response.code, responseHeaders, type, bytes, current)
             }
             // The next loop iteration re-validates the redirected URL.
         }
@@ -471,10 +475,11 @@ class MornyeNativeHost(
                 }
                 return HttpResult(
                     response.code,
-                    JSONObject(),
+                    JSONObject().put("downloadedBytes", written),
                     response.header("Content-Type").orEmpty().substringBefore(';').lowercase(Locale.ROOT),
                     ByteArray(0),
-                ).copy(headers = JSONObject().put("downloadedBytes", written))
+                    current,
+                )
             }
         }
         throw IOException("Extension download failed")

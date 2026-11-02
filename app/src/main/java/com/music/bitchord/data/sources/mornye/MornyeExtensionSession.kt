@@ -70,7 +70,7 @@ class MornyeExtensionSession private constructor(
         }
         return candidates.firstOrNull { candidate ->
             words.any { word -> candidate.contains(word, ignoreCase = true) }
-        } ?: if (requested.equals("LOSSLESS", true)) requested else candidates.first()
+        } ?: candidates.first()
     }
 
     suspend fun search(query: String, limit: Int = 20): List<JSONObject> {

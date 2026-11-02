@@ -210,6 +210,7 @@ class MornyeQuickJsRuntime private constructor(
                   ok: !!response.ok,
                   status: Number(response.status || 0),
                   statusText: response.statusText || '',
+                  url: response.url || String(url),
                   headers: {get:function(name) {
                     var headers = response.headers || {};
                     var key = Object.keys(headers).find(function(k) { return k.toLowerCase() === String(name).toLowerCase(); });

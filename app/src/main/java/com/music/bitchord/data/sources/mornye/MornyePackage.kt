@@ -71,6 +71,9 @@ object MornyePackageReader {
     private val idPattern = Regex("^[a-z0-9][a-z0-9_-]{0,99}$")
     private val versionPattern = Regex("^\\d+\\.\\d+\\.\\d+(?:[-+][\\w.-]+)?$")
     private val domainPattern = Regex("^(?:\\*\\.)?[a-z0-9.-]+$", RegexOption.IGNORE_CASE)
+    private val FEATURE_REQUIREMENT = Regex("^([A-Za-z][A-Za-z0-9]*)@(\\d+)$")
+    /** Only complete host contracts implemented in BitChord are advertised. */
+    private val SUPPORTED_RUNTIME_FEATURES = mapOf("preparedContext" to 1)
 
     fun read(bytes: ByteArray, expectedSha256: String? = null): MornyePackageArchive {
         if (bytes.isEmpty() || bytes.size > MAX_ARCHIVE_BYTES) {
@@ -175,6 +178,23 @@ object MornyePackageReader {
             )
         }
 
+        val requiredFeatures = root["requiredRuntimeFeatures"] as? JsonArray ?: JsonArray(emptyList())
+        if (requiredFeatures.size > 100) {
+            throw MornyePackageException("Manifest declares too many runtime features")
+        }
+        requiredFeatures.forEach { item ->
+            val feature = (item as? JsonPrimitive)?.contentOrNull
+                ?: throw MornyePackageException("Runtime feature requirements must be strings")
+            val match = FEATURE_REQUIREMENT.matchEntire(feature)
+                ?: throw MornyePackageException("Invalid runtime feature requirement: $feature")
+            val supported = SUPPORTED_RUNTIME_FEATURES[match.groupValues[1]]
+            val required = match.groupValues[2].toIntOrNull()
+                ?: throw MornyePackageException("Invalid runtime feature version: $feature")
+            if (supported == null || supported < required) {
+                throw MornyePackageException("Unsupported Mornye runtime feature: $feature")
+            }
+        }
+
         val permissions = root["permissions"] as? JsonObject
             ?: throw MornyePackageException("Manifest permissions must be an object")
         val network = permissions["network"] as? JsonArray
@@ -193,6 +213,9 @@ object MornyePackageReader {
 
         val storage = permissions["storage"]?.jsonPrimitive?.booleanOrNull ?: false
         val file = permissions["file"]?.jsonPrimitive?.booleanOrNull ?: false
+        if (downloadable && !file) {
+            throw MornyePackageException("Download providers must declare file permission")
+        }
         if (root["signedSession"] != null && !storage) {
             throw MornyePackageException("Signed sessions require the storage permission")
         }
