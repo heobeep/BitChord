@@ -482,14 +482,6 @@ fun CreditsFmApiKeyAlert(
         "if (isrc != null && credits.isEmpty()) {",
         "if (isrc != null) {",
     )
-    repository_text = repository_text.replace(
-        'parameter("limit", 5)',
-        'parameter("limit", 25)',
-    )
-    old_query = 'val query = "recording:' + chr(36) + '{luceneQuote(title)} AND artist:' + chr(36) + '{luceneQuote(artist)}"'
-    new_query = 'val query = "recording:" + luceneQuote(title)'
-    if old_query in repository_text:
-        repository_text = repository_text.replace(old_query, new_query, 1)
 
     # Search by recording title to avoid dropping candidates when provider artist
     # strings differ, as they often do with multi-writer / film-music credits.
