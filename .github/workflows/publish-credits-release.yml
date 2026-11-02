@@ -52,7 +52,7 @@ jobs:
           echo "tag=credits-v$VERSION" >> "$GITHUB_OUTPUT"
           echo "title=BitChord Credits v$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Check whether this version is already published
+      - name: Check whether this version already exists
         if: steps.latest-build.outputs.current == 'true'
         id: release-check
         env:
@@ -61,13 +61,13 @@ jobs:
         run: |
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "$TAG already exists; leaving the published release untouched."
+            echo "$TAG already exists; its assets and notes will be reconciled with this validated build."
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Download the APKs from the successful build
-        if: steps.latest-build.outputs.current == 'true' && steps.release-check.outputs.exists == 'false'
+        if: steps.latest-build.outputs.current == 'true'
         uses: actions/download-artifact@v4
         with:
           name: BitChord-Credits-all-installers
@@ -76,7 +76,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Verify the safe install matrix and prepare checksums
-        if: steps.latest-build.outputs.current == 'true' && steps.release-check.outputs.exists == 'false'
+        if: steps.latest-build.outputs.current == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -130,8 +130,30 @@ jobs:
           done
           ls -lh release-assets/
 
+      - name: Remove unsafe Replace downloads from an existing release
+        if: steps.latest-build.outputs.current == 'true' && steps.release-check.outputs.exists == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.release-meta.outputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -Eq '^INSTALL COMPATIBILITY: MATCH -' release-assets/INSTALL-COMPATIBILITY.txt; then
+            echo "Compatibility is MATCH; the validated Replace downloads will be refreshed."
+            exit 0
+          fi
+
+          echo "Compatibility is not MATCH; deleting every pre-existing Replace APK and checksum from $TAG."
+          while IFS= read -r asset; do
+            case "$asset" in
+              BitChord-Credits-Replace-*.apk|BitChord-Credits-Replace-*.apk.sha256)
+                gh release delete-asset "$TAG" "$asset" --yes
+                ;;
+            esac
+          done < <(gh release view "$TAG" --json assets --jq '.assets[].name')
+
       - name: Create the GitHub release and attach verified downloads
-        if: steps.latest-build.outputs.current == 'true' && steps.release-check.outputs.exists == 'false'
+        if: steps.latest-build.outputs.current == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.release-meta.outputs.tag }}
@@ -141,6 +163,7 @@ jobs:
           prerelease: false
           make_latest: true
           fail_on_unmatched_files: true
+          overwrite_files: true
           files: |
             release-assets/*
           body: |
@@ -152,7 +175,7 @@ jobs:
             Installs BitChord Credits separately and leaves the official BitChord app installed. Universal is the easiest choice if you are unsure which download fits your phone.
 
             ### Replace original BitChord
-            Replace downloads are included only when INSTALL-COMPATIBILITY.txt reports MATCH for the official release checked during this build. If they are absent, compatibility was not confirmed and you should use Keep Original.
+            Replace APKs are included only when INSTALL-COMPATIBILITY.txt reports an exact MATCH for the official release checked during this build. If no Replace APKs are attached, do not uninstall the original app; use Keep Original instead.
 
             ### Device builds
             - Universal: easiest choice if you do not know your device type.
