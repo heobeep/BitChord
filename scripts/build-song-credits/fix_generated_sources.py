@@ -498,6 +498,17 @@ class SongCreditsMatchingTest {
     }
 
     @Test
+    fun matchesDevanagariRecordingAndArtistNames() {
+        val response = Json.parseToJsonElement(
+            """{"recordings":[{"id":"55555555-5555-4555-8555-555555555555","title":"रातां लंबियां","artist-credit":[{"name":"जुबिन नौटियाल"}]}]}""",
+        )
+        assertEquals(
+            "55555555-5555-4555-8555-555555555555",
+            SongCreditsParser.bestRecordingMbid(response, "रातां लंबियां", "जुबिन नौटियाल - Topic"),
+        )
+    }
+
+    @Test
     fun rejectsSameTitleWhenTheRecordingArtistDoesNotMatch() {
         val response = Json.parseToJsonElement(
             """{"recordings":[{"id":"44444444-4444-4444-8444-444444444444","title":"Kesariya","artist-credit":[{"name":"Another Singer"}]}]}""",
