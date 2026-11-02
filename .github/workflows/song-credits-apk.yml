@@ -37,7 +37,7 @@ jobs:
           fi
       - name: Restore and verify the permanent Credits signing key
         env:
-          DEBUG_KEYSTORE_BASE64: \${{ secrets.DEBUG_KEYSTORE_BASE64 }}
+          DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
         run: |
           if [ -z "$DEBUG_KEYSTORE_BASE64" ]; then
             echo "::error::DEBUG_KEYSTORE_BASE64 is missing. Refusing to publish APKs signed with a temporary key."
@@ -80,12 +80,12 @@ jobs:
             local apk base abi package cert count=0
             shopt -s nullglob
             local apks=("$source_dir"/*.apk)
-            if [ "\${#apks[@]}" -ne 4 ]; then
-              echo "::error::Expected universal + 3 ABI APKs for $mode; found \${#apks[@]} in $source_dir."
-              printf '%s\n' "\${apks[@]}"
+            if [ "${#apks[@]}" -ne 4 ]; then
+              echo "::error::Expected universal + 3 ABI APKs for $mode; found ${#apks[@]} in $source_dir."
+              printf '%s\n' "${apks[@]}"
               exit 1
             fi
-            for apk in "\${apks[@]}"; do
+            for apk in "${apks[@]}"; do
               base="$(basename "$apk")"
               case "$base" in
                 *arm64-v8a*) abi="arm64-v8a" ;;
@@ -117,7 +117,7 @@ jobs:
                   exit 1
                 }
               fi
-              cp "$apk" "release-assets/BitChord-Credits-$mode-v\${VERSION}-$abi.apk"
+              cp "$apk" "release-assets/BitChord-Credits-$mode-v${VERSION}-$abi.apk"
               count=$((count + 1))
             done
             if [ "$count" -ne 4 ]; then
@@ -138,7 +138,7 @@ jobs:
           APKSIGNER="$BUILD_TOOLS/apksigner"
           EXPECTED_CERT="cb95906a22d14fc5a2e7b8a54e0d175ef3ab55e7f5ea50bfdcb2bf8e90d7b7fb"
           VERSION="$(grep -E '^extra\["bitchordVersionName"\] = ' build.gradle.kts | sed -E 's/.*"([^"]+)".*/\1/')"
-          REPLACE_APK="release-assets/BitChord-Credits-Replace-v\${VERSION}-arm64-v8a.apk"
+          REPLACE_APK="release-assets/BitChord-Credits-Replace-v${VERSION}-arm64-v8a.apk"
           REPLACE_CODE="$("$AAPT" dump badging "$REPLACE_APK" | sed -n "s/.*versionCode='\([^']*\)'.*/\1/p")"
           UPSTREAM_TAG="unavailable"
           UPSTREAM_PACKAGE=""
@@ -165,11 +165,11 @@ jobs:
             STATUS="UNVERIFIED - the official APK could not be downloaded for signature comparison. Do not assume an in-place update will work; uninstall original BitChord first if switching."
           fi
           {
-            echo "BitChord Credits v\${VERSION}"
+            echo "BitChord Credits v${VERSION}"
             echo "Official upstream reference: $UPSTREAM_TAG"
-            echo "Upstream package: \${UPSTREAM_PACKAGE:-unknown}"
-            echo "Upstream versionCode: \${UPSTREAM_CODE:-unknown}"
-            echo "Upstream signer SHA-256: \${UPSTREAM_CERT:-unknown}"
+            echo "Upstream package: ${UPSTREAM_PACKAGE:-unknown}"
+            echo "Upstream versionCode: ${UPSTREAM_CODE:-unknown}"
+            echo "Upstream signer SHA-256: ${UPSTREAM_CERT:-unknown}"
             echo "Credits signer SHA-256: $EXPECTED_CERT"
             echo "Replacement APK versionCode: $REPLACE_CODE"
             echo
