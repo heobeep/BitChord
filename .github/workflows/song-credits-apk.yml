@@ -3,6 +3,8 @@ name: Build BitChord Credits APK
 on:
   push:
     branches: [song-credits-apk]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
