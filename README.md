@@ -56,37 +56,13 @@ The exact feature set can evolve with the upstream project and this fork.
 
 ## 📥 Download
 
-<div align="center">
+**[Open the download guide](DOWNLOADS.md)** before choosing an APK. It separates the install choice (keep the original or replace it) from the device choice, and explains when an in-place update is actually compatible.
 
-### **BitChord Credits v1.9 · Android ARM64**
+**Not sure what ARM is?** Choose **Keep Original → Universal** from the latest release. It is the easiest option and does not replace your existing BitChord installation.
 
-[![Get it on GitHub Releases](https://img.shields.io/badge/GET%20THE%20APK-GitHub%20Releases-6e56cf?style=for-the-badge&logo=github)](https://github.com/heobeep/BitChord/releases/latest)
+[![Get the latest BitChord Credits builds](https://img.shields.io/badge/Download-BitChord%20Credits-6e56cf?style=for-the-badge&logo=github)](https://github.com/heobeep/BitChord/releases/latest)
 
-**Current package:** optimized ARM64 phone APK · approximately 83 MB
-
-</div>
-
-Download the APK from the **Assets** section of the latest release. Choose the file ending in `arm64-v8a.apk`.
-
-> [!IMPORTANT]
-> The published APK is for **64-bit ARM Android devices** (the common architecture on modern Android phones). It is not a universal APK and is not intended for x86 devices or 32-bit-only ARM devices.
-
-### Getting started
-
-1. Open the [latest release](https://github.com/heobeep/BitChord/releases/latest).
-2. Download the **BitChord Credits ARM64 APK** from the release assets.
-3. When Android asks, allow your browser or file manager to install unknown apps.
-4. Open the downloaded APK and follow Android’s install prompt.
-
-**Keep your original BitChord:** the Credits build uses a separate application ID, so it is designed to install alongside the original app rather than replace it.
-
-### A note about this build
-
-The current APK is an optimized CI build signed with a GitHub Actions debug signing key. It is suitable for sideloading, but it is **not signed with a permanent public release key**. Because CI debug keys can change between build runs, a future APK may not install as an in-place update over this one; Android may require the previous Credits build to be uninstalled first. Uninstalling an app can remove its local app data.
-
-The build workflow completed its shared metadata tests and verified that it produced exactly one ARM64 APK. It has not yet been validated on a broad range of physical devices.
-
----
+Each release includes universal, ARM64, 32-bit ARM and x86_64 phone builds for both install modes. The replacement build is labelled separately and includes an automatically generated signing-compatibility report. Read that report before installing it over the official app.
 
 ## 🎼 How song credits work
 

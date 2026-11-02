@@ -1,20 +1,12 @@
 # BitChord Credits build
 
-This branch builds a separate app package: `com.music.bitchord.songcredits` (label: BitChord Credits). It does not replace the original BitChord package.
+This branch builds two phone install modes from one source tree:
 
-The workflow applies the native Song Credits patch, runs `:shared:jvmTest`, compiles `:app:assembleCreditsDebug`, and uploads the installable debug-signed APK as the workflow artifact **BitChord-Credits-debug-apk**.
+- **Keep original:** package com.music.bitchord.songcredits.benchmark, so it can coexist with the official com.music.bitchord app and with older Credits installs.
+- **Replace original:** package com.music.bitchord, built with the persistent Credits signing key. CI compares that certificate and versionCode with the latest official upstream APK. The generated compatibility report determines whether it can update in place or requires uninstalling the original first.
 
-The feature uses Credits.fm (anonymous mode works; key optional), the existing ListenBrainz token only when enabled, and MusicBrainz as a public fallback. The Credits.fm key is stored via BitChord's encrypted AuthStore.
+Each mode is built as four installable APKs: universal, arm64-v8a, armeabi-v7a, and x86_64. Universal includes all three supported ABIs and is the recommended choice when a user does not know their device architecture.
 
-Workflow: Actions → Build BitChord Credits APK. On completion, open the run and download the artifact.
+The build runs shared metadata tests and Credits app unit tests, checks package IDs and signing fingerprints for every APK, checks the official signing certificate, calculates compatibility, and uploads all APKs plus DOWNLOADS.md and INSTALL-COMPATIBILITY.txt.
 
-## Credits.fm navigation and catalogue matching
-
-The Account & Integrations page exposes a direct link to the Credits.fm API page for
-an optional free API key, plus an in-app shortcut to Appearance → Song Info & Credits.
-A key is not required for ordinary public lookups.
-
-MusicBrainz candidate retrieval is title-based so differently formatted artist credits
-do not suppress otherwise relevant recording candidates. BitChord still validates the
-recording title and artist credit locally before accepting a match; this deliberately
-favours a missing credit over displaying credits for the wrong recording.
+Workflow: Actions → Build BitChord Credits APK. Successful runs are published automatically by publish-credits-release.yml, provided the run still corresponds to the current branch head.
