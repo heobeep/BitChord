@@ -994,12 +994,21 @@ object SourceResolver {
                 } else {
                     withTimeoutOrNull(remainingMs(until)) { awaiting() } ?: break
                 }
-                // Anything that crossed the line while that one was being waited
-                // on is already sitting there. Folding those in costs no time at
-                // all and is what lets rank break a tie between two sources that
-                // both answered quickly.
-                val ready = listOf(first) + running.filter { it !== first && it.isCompleted }
-                running -= ready.toSet()
+                // Let the rest of this tiny co-arrival window settle before
+                // choosing. A dispatcher can resume the parent after the first
+                // completion but before a sibling with the same delay; checking
+                // isCompleted immediately made callback order decide quality.
+                val ready = mutableListOf(first)
+                running.remove(first)
+                if (!waitForAll && running.isNotEmpty()) {
+                    val tieDeadline = System.nanoTime() + SIMULTANEOUS_ANSWER_WINDOW_MS * 1_000_000
+                    val settleUntil = until?.let { minOf(it, tieDeadline) } ?: tieDeadline
+                    while (running.isNotEmpty()) {
+                        val next = withTimeoutOrNull(remainingMs(settleUntil)) { awaiting() } ?: break
+                        ready += next
+                        running.remove(next)
+                    }
+                }
                 for (done in ready) {
                     val (source, stream) = done.await()
                     if (stream == null) continue
@@ -1367,6 +1376,13 @@ object SourceResolver {
         TrackLog.w(TAG, "${source.displayName} failed: ${e.javaClass.simpleName}: ${e.message}")
         null
     }
+
+    /**
+     * How long to collect near-simultaneous source answers before playback picks
+     * the winner. This small window lets quality beat dispatcher callback order
+     * without waiting on genuinely slower catalogues.
+     */
+    private const val SIMULTANEOUS_ANSWER_WINDOW_MS = 20L
 
     /**
      * How many answers per query are worth weighing.
