@@ -8,6 +8,7 @@ import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.Dns
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -228,6 +229,7 @@ class MornyeNativeHost(
     private fun jsonString(value: Any?): String = when (value) {
         null, JSONObject.NULL -> "null"
         is JSONObject, is JSONArray -> value.toString()
+        is Number, is Boolean -> value.toString()
         else -> JSONObject.quote(value.toString())
     }
 
@@ -332,7 +334,7 @@ class MornyeNativeHost(
     }
 
     private fun validateUrl(raw: String): okhttp3.HttpUrl {
-        val url = okhttp3.HttpUrl.Companion.toHttpUrlOrNull(raw)
+        val url = raw.toHttpUrlOrNull()
             ?: throw IllegalArgumentException("Extension requested an invalid URL")
         if (url.scheme != "https" && !(allowHttp && url.scheme == "http")) {
             throw SecurityException("Extension network permission requires HTTPS")
