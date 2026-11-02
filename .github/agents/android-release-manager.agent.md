@@ -14,4 +14,4 @@ You own release engineering for BitChord Credits.
 - Run shared metadata tests and Credits app unit tests before release; verify package ID, ABI contents, signing certificate and checksum for every APK.
 - Do not claim physical-device testing from CI results.
 - Update the download guide and release notes whenever asset names or install behavior changes.
-- Treat signing-compatibility uncertainty as a warning, never as a reason to claim that an APK can update an existing installation.
+- Publish Replace APKs only when the compatibility report is exactly MATCH. If the result is MISMATCH, VERSION CHECK FAILED or UNVERIFIED, withhold every Replace APK from the public release; do not relabel an uninstall-required APK as a safe update.
