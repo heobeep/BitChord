@@ -129,7 +129,7 @@
 
     // The publisher writes this marker only after validating the exact compatibility report.
     // Also require all four APKs and the report itself. Anything missing means "not safe".
-    const publisherConfirmedMatch = /(?:^|\\n)\\s*\\*\\*Compatibility check:\\s*MATCH\\*\\*/i.test(releaseNote);
+    const publisherConfirmedMatch = releaseNote.includes("**Compatibility check: MATCH**");
     return allReplaceAssets && !!report && publisherConfirmedMatch;
   }
 
