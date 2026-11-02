@@ -132,7 +132,8 @@ jobs:
           mapfile -t apks < <(find release-assets -maxdepth 1 -type f -name '*.apk' -print)
           for apk in "${apks[@]}"; do
             test -s "$apk"
-            sha256sum "$apk" > "$apk.sha256"
+            filename="$(basename "$apk")"
+            (cd release-assets && sha256sum "$filename" > "$filename.sha256")
           done
           test -s release-assets/DOWNLOADS.md
           test -s release-assets/INSTALL-COMPATIBILITY.txt
