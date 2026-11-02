@@ -688,18 +688,40 @@ fun CreditsFmApiKeyAlert(
     if label_count == 0:
         credits_block = credits_block[:-1] + "    " + app_label_value + "\n}"
 
-    updater_field = r'''        buildConfigField(
-            "String",
-            "UPDATE_APK_PREFIX",
-            if (providers.gradleProperty("bitchord.credits.cleanSwitch").orNull == "true") {
-                "\"BitChord-Credits-Replace-\""
-            } else {
-                "\"BitChord-Credits-Keep-\""
-            },
+    updater_field = r'''buildConfigField(
+    "String",
+    "UPDATE_APK_PREFIX",
+    if (providers.gradleProperty("bitchord.credits.cleanSwitch").orNull == "true") {
+        "\"BitChord-Credits-Replace-\""
+    } else {
+        "\"BitChord-Credits-Keep-\""
+    },
+)'''
+    updater_pattern = re.compile(
+        r'(?m)^([ \t]*)buildConfigField\("String",\s*"UPDATE_APK_PREFIX",.*\)$'
+    )
+    updater_match = updater_pattern.search(credits_block)
+    if updater_match:
+        updater_indent = updater_match.group(1)
+        updater_replacement = "\n".join(
+            updater_indent + line for line in updater_field.splitlines()
         )
-'''
-    if '"UPDATE_APK_PREFIX"' not in credits_block:
-        credits_block = credits_block[:-1] + updater_field + "    }\n"
+        credits_block = (
+            credits_block[:updater_match.start()]
+            + updater_replacement
+            + credits_block[updater_match.end():]
+        )
+    else:
+        updater_indent = "            "
+        updater_replacement = "\n".join(
+            updater_indent + line for line in updater_field.splitlines()
+        )
+        credits_block = (
+            credits_block[:-1]
+            + "\n"
+            + updater_replacement
+            + "\n        }"
+        )
 
     gradle_text = gradle_text[:credits_start] + credits_block + gradle_text[credits_close + 1:]
     gradle.write_text(gradle_text, encoding="utf-8")
