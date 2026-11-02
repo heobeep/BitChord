@@ -140,7 +140,18 @@ jobs:
                   exit 1
                 }
               fi
-              cp "$apk" "release-assets/BitChord-Credits-$mode-v${VERSION}-$abi.apk"
+              if [ "$abi" = "universal" ]; then
+                if [ "$mode" = "Keep" ]; then
+                  suffix="-universal"
+                else
+                  # A leading underscore keeps this out of the legacy generic
+                  # updater's universal match; Replace updates use ABI splits.
+                  suffix="_universal"
+                fi
+              else
+                suffix="_$abi"
+              fi
+              cp "$apk" "release-assets/BitChord-Credits-$mode-v${VERSION}${suffix}.apk"
               count=$((count + 1))
             done
             if [ "$count" -ne 4 ]; then
@@ -161,7 +172,7 @@ jobs:
           APKSIGNER="$BUILD_TOOLS/apksigner"
           EXPECTED_CERT="cb95906a22d14fc5a2e7b8a54e0d175ef3ab55e7f5ea50bfdcb2bf8e90d7b7fb"
           VERSION="$(grep -E '^extra\["bitchordVersionName"\] = ' build.gradle.kts | sed -E 's/.*"([^"]+)".*/\1/')"
-          REPLACE_APK="release-assets/BitChord-Credits-Replace-v${VERSION}-arm64-v8a.apk"
+          REPLACE_APK="release-assets/BitChord-Credits-Replace-v${VERSION}_arm64-v8a.apk"
           REPLACE_CODE="$("$AAPT" dump badging "$REPLACE_APK" | sed -n "s/.*versionCode='\([^']*\)'.*/\1/p")"
           UPSTREAM_TAG="unavailable"
           UPSTREAM_PACKAGE=""
