@@ -86,12 +86,12 @@ jobs:
         run: |
           set -euo pipefail
           mapfile -t apks < <(find release-assets -type f -name '*.apk' -print)
-          if [ "\${#apks[@]}" -ne 8 ]; then
-            echo "Expected 8 APKs (4 architectures × 2 install modes); found \${#apks[@]}."
+          if [ "${#apks[@]}" -ne 8 ]; then
+            echo "Expected 8 APKs (4 architectures × 2 install modes); found ${#apks[@]}."
             find release-assets -maxdepth 2 -type f -print
             exit 1
           fi
-          for apk in "\${apks[@]}"; do
+          for apk in "${apks[@]}"; do
             sha256sum "$apk" > "$apk.sha256"
           done
           test -s release-assets/DOWNLOADS.md
