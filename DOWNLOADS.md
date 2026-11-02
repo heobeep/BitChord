@@ -31,10 +31,10 @@ Choose one of the APKs whose name begins with BitChord-Credits-Replace-.
 
 | File ending | Intended device | Which should I choose? |
 |---|---|---|
-| universal.apk | ARM64 phones, older 32-bit ARM devices, and x86_64 Android devices | **Choose this if unsure.** It is larger but includes all supported ABIs. |
-| arm64-v8a.apk | Most modern Android phones and tablets | Best smaller download for most recent phones. |
-| armeabi-v7a.apk | Older 32-bit ARM phones and some older TV/streaming devices | Use only for older 32-bit ARM devices. |
-| x86_64.apk | Android emulators and x86_64 Chromebooks | Use for x86_64 devices, not ordinary ARM phones. |
+| Universal APK (no ABI suffix; Keep ends in `-universal.apk`, Replace in `_universal.apk`) | ARM64 phones, older 32-bit ARM devices, and x86_64 Android devices | **Choose this if unsure.** It is larger but includes all supported ABIs. |
+| `_arm64-v8a.apk` | Most modern Android phones and tablets | Best smaller download for most recent phones. |
+| `_armeabi-v7a.apk` | Older 32-bit ARM phones | Use only for older 32-bit ARM devices. |
+| `_x86_64.apk` | Android emulators and x86_64 Chromebooks | Use for x86_64 devices, not ordinary ARM phones. |
 
 All APKs in this release target Android 8.0 (API 26) or newer. These are **phone/tablet builds**; Android TV is a separate app and is not part of this download set.
 
