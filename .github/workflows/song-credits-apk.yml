@@ -220,7 +220,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if ! grep -Fq 'INSTALL COMPATIBILITY: MATCH' release-assets/INSTALL-COMPATIBILITY.txt; then
+          if ! grep -Eq '^INSTALL COMPATIBILITY: MATCH -' release-assets/INSTALL-COMPATIBILITY.txt; then
             echo 'Compatibility is not MATCH; removing all Replace APKs from public downloads.'
             rm -f release-assets/BitChord-Credits-Replace-*.apk
           else
