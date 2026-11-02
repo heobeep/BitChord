@@ -259,7 +259,7 @@ h1 i, h2 i, h3 i { color: inherit; font-style: normal; font-weight: inherit; }
 .aside-disc {
   position: absolute; top: -58px; right: -100px; width: 210px; height: 210px;
   border: 1px solid rgba(224, 200, 255, .3); border-radius: 50%;
-  background: repeating-radial-gradient(circle at center, rgba(210,190,235,.07) 0 1px, rgba(0,0,0,.04) 2px 6px);
+  background: #171320;
 }
 .aside-disc::before, .aside-disc::after {
   position: absolute; inset: 18px; border: 1px solid rgba(226,204,255,.2);
@@ -297,10 +297,14 @@ h1 i, h2 i, h3 i { color: inherit; font-style: normal; font-weight: inherit; }
 .credits-art__record {
   position: relative; width: min(310px, 76vw); aspect-ratio: 1;
   border: 1px solid rgba(220,198,255,.25); border-radius: 50%;
-  background: repeating-radial-gradient(circle at center, #3a294b 0 1px, #191521 2px 5px, #2a2035 6px 7px);
+  background: #191521;
 }
 .credits-art__record::before {
-  position: absolute; inset: 12%; border: 1px solid rgba(230,211,255,.13);
+  position: absolute; inset: 12%; border: 1px solid rgba(230,211,255,.18);
+  border-radius: 50%; content: "";
+}
+.credits-art__record::after {
+  position: absolute; inset: 27%; border: 1px solid rgba(230,211,255,.13);
   border-radius: 50%; content: "";
 }
 .credits-art__label {
