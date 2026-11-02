@@ -4,6 +4,8 @@ import android.content.Context
 import com.music.bitchord.data.sources.SourceConfig
 import com.music.bitchord.data.sources.SourceKind
 import com.music.bitchord.data.sources.SourceRegistry
+import com.music.bitchord.auth.EncryptedPrefs
+import java.io.File
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -101,7 +103,16 @@ object MornyeExtensionManager {
     suspend fun remove(extensionId: String) {
         requireInitialized()
         closeSession(extensionId)
+        require(extensionId.matches(Regex("^[a-z0-9][a-z0-9_-]{0,99}$"))) {
+            "Invalid extension ID"
+        }
         store.remove(extensionId)
+        File(appContext.filesDir, "mornye/data/" + extensionId).deleteRecursively()
+        EncryptedPrefs.open(
+            appContext,
+            "mornye_" + extensionId,
+            "mornye_" + extensionId + "_plain",
+        ).edit().clear().apply()
         SourceRegistry.configs.value
             .firstOrNull { it.kind == SourceKind.MORNYE && it.baseUrl == extensionId }
             ?.let { SourceRegistry.remove(it.id) }

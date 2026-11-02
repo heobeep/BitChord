@@ -217,7 +217,7 @@ class MornyeQuickJsRuntime private constructor(
                   }},
                   text: async function() { return response.body || ''; },
                   json: async function() { return JSON.parse(response.body || 'null'); },
-                  arrayBuffer: async function() { return call('decodeBase64Bytes', [response.binary || '']).buffer; }
+                  arrayBuffer: async function() { return new Uint8Array(call('decodeBase64Bytes', [response.binary || ''])).buffer; }
                 };
               };
               globalThis.storage = {};
