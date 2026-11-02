@@ -1,10 +1,6 @@
 name: Publish BitChord Credits release
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - .github/workflows/publish-credits-release.yml
   workflow_run:
     workflows: ["Build BitChord Credits APK"]
     types: [completed]
@@ -17,11 +13,11 @@ permissions:
 jobs:
   publish:
     name: Publish the verified ARM64 APK
-    if: ${{ github.event_name == 'push' || github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     env:
-      SOURCE_RUN_ID: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || '41297714750' }}
-      SOURCE_COMMIT_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || '5c46c1a1e09c9597583f11619141781d69d8ee9f' }}
+      SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+      SOURCE_COMMIT_SHA: ${{ github.event.workflow_run.head_sha }}
     steps:
       - name: Check out the exact source used for the APK
         uses: actions/checkout@v4
@@ -79,27 +75,27 @@ jobs:
         if: steps.latest-build.outputs.current != 'false' && steps.release-check.outputs.exists == 'false'
         uses: actions/download-artifact@v4
         with:
-          name: BitChord-Credits-arm64-optimized-apk
+          name: BitChord-Credits-all-installers
           path: release-assets
           run-id: ${{ env.SOURCE_RUN_ID }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Verify and prepare release files
+      - name: Verify all install modes and prepare checksums
         if: steps.latest-build.outputs.current != 'false' && steps.release-check.outputs.exists == 'false'
         shell: bash
-        env:
-          APK_NAME: ${{ steps.release-meta.outputs.apk_name }}
-          CHECKSUM_NAME: ${{ steps.release-meta.outputs.checksum_name }}
         run: |
+          set -euo pipefail
           mapfile -t apks < <(find release-assets -type f -name '*.apk' -print)
-          if [ "${#apks[@]}" -ne 1 ]; then
-            echo "Expected exactly one APK in the build artifact; found ${#apks[@]}."
-            find release-assets -maxdepth 3 -type f -print
+          if [ "\${#apks[@]}" -ne 8 ]; then
+            echo "Expected 8 APKs (4 architectures × 2 install modes); found \${#apks[@]}."
+            find release-assets -maxdepth 2 -type f -print
             exit 1
           fi
-
-          mv "${apks[0]}" "release-assets/$APK_NAME"
-          sha256sum "release-assets/$APK_NAME" > "release-assets/$CHECKSUM_NAME"
+          for apk in "\${apks[@]}"; do
+            sha256sum "$apk" > "$apk.sha256"
+          done
+          test -s release-assets/DOWNLOADS.md
+          test -s release-assets/INSTALL-COMPATIBILITY.txt
           ls -lh release-assets/
 
       - name: Create the GitHub release and attach the APK
@@ -114,21 +110,27 @@ jobs:
           make_latest: true
           fail_on_unmatched_files: true
           files: |
-            release-assets/${{ steps.release-meta.outputs.apk_name }}
-            release-assets/${{ steps.release-meta.outputs.checksum_name }}
+            release-assets/*.apk
+            release-assets/*.apk.sha256
+            release-assets/DOWNLOADS.md
+            release-assets/INSTALL-COMPATIBILITY.txt
           body: |
             ## BitChord Credits v${{ steps.release-meta.outputs.version }}
 
-            An independent BitChord community fork with a native song-credits experience and optional Credits.fm integration.
+            Choose an install mode first, then choose a device build.
 
-            ### Download
-            - **${{ steps.release-meta.outputs.apk_name }}** — optimized Android ARM64 phone build.
-            - **${{ steps.release-meta.outputs.checksum_name }}** — SHA-256 checksum for verification.
+            ### Keep original BitChord (recommended)
+            Installs BitChord Credits separately and leaves the official BitChord app installed.
 
-            ### Install notes
-            - ARM64 only; not a universal APK.
-            - Uses a separate application ID so it can coexist with the original BitChord app.
-            - A stable CI signing key is used only when DEBUG_KEYSTORE_BASE64 is configured. The first update from v1.9 may still require reinstalling if its original signing key differs.
-            - The build runs shared metadata tests and the Credits app unit tests. Physical-device compatibility testing is not implied by a successful CI build.
+            ### Replace original BitChord
+            Uses the original package ID. Read INSTALL-COMPATIBILITY.txt before installing:
+            - MATCH means the official release checked in CI has the same signing certificate and a lower versionCode.
+            - MISMATCH or UNVERIFIED means Android will not safely update the installed official app. Uninstall it first; this can erase private app data.
 
-            See the [README](https://github.com/heobeep/BitChord#readme) for features, setup, compatibility and project details.
+            ### Device builds
+            - Universal: easiest choice if you do not know your device architecture.
+            - arm64-v8a: most recent Android phones and tablets.
+            - armeabi-v7a: older 32-bit ARM devices.
+            - x86_64: Android emulators and x86_64 Chromebooks.
+
+            All APKs include SHA-256 checksum files. See DOWNLOADS.md for the complete installation guide.
