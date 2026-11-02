@@ -124,6 +124,7 @@ fun SourcesScreen(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    var showMornyeExtensions by remember { mutableStateOf(false) }
     val configs by SourceRegistry.configs.collectAsStateWithLifecycle()
     val wifiQuality by AppSettings.audioQualityWifi.collectAsStateWithLifecycle()
     val cellularQuality by AppSettings.audioQualityCellular.collectAsStateWithLifecycle()
@@ -289,6 +290,14 @@ fun SourcesScreen(
             AddSourceRow(
                 onClick = { onEditSource(SourceConfig(kind = SourceKind.ADDON)) },
             )
+
+            RowDivider()
+            SettingsRow(
+                icon = SfIcons.Extension,
+                title = "Mornye extensions",
+                subtitle = "Browse and install compatible music providers",
+                onClick = { showMornyeExtensions = true },
+            )
         }
 
         // A personal library rather than a catalogue in the order above: it
@@ -371,6 +380,9 @@ fun SourcesScreen(
         Spacer(Modifier.height(32.dp))
     }
 
+    if (showMornyeExtensions) {
+        MornyeExtensionsDialog(onDismiss = { showMornyeExtensions = false })
+    }
 }
 
 
