@@ -56,37 +56,13 @@ The exact feature set can evolve with the upstream project and this fork.
 
 ## 📥 Download
 
-<div align="center">
+**[Open the download guide](DOWNLOADS.md)** before choosing an APK. It separates the install choice (keep the original or replace it) from the device choice, and explains when an in-place update is actually compatible.
 
-### **BitChord Credits v1.9 · Android ARM64**
+**Not sure what ARM is?** Choose **Keep Original → Universal** from the latest release. It is the easiest option and does not replace your existing BitChord installation.
 
-[![Get it on GitHub Releases](https://img.shields.io/badge/GET%20THE%20APK-GitHub%20Releases-6e56cf?style=for-the-badge&logo=github)](https://github.com/heobeep/BitChord/releases/latest)
+[![Get the latest BitChord Credits builds](https://img.shields.io/badge/Download-BitChord%20Credits-6e56cf?style=for-the-badge&logo=github)](https://github.com/heobeep/BitChord/releases/latest)
 
-**Current package:** optimized ARM64 phone APK · approximately 83 MB
-
-</div>
-
-Download the APK from the **Assets** section of the latest release. Choose the file ending in `arm64-v8a.apk`.
-
-> [!IMPORTANT]
-> The published APK is for **64-bit ARM Android devices** (the common architecture on modern Android phones). It is not a universal APK and is not intended for x86 devices or 32-bit-only ARM devices.
-
-### Getting started
-
-1. Open the [latest release](https://github.com/heobeep/BitChord/releases/latest).
-2. Download the **BitChord Credits ARM64 APK** from the release assets.
-3. When Android asks, allow your browser or file manager to install unknown apps.
-4. Open the downloaded APK and follow Android’s install prompt.
-
-**Keep your original BitChord:** the Credits build uses a separate application ID, so it is designed to install alongside the original app rather than replace it.
-
-### A note about this build
-
-The current APK is an optimized CI build signed with a GitHub Actions debug signing key. It is suitable for sideloading, but it is **not signed with a permanent public release key**. Because CI debug keys can change between build runs, a future APK may not install as an in-place update over this one; Android may require the previous Credits build to be uninstalled first. Uninstalling an app can remove its local app data.
-
-The build workflow completed its shared metadata tests and verified that it produced exactly one ARM64 APK. It has not yet been validated on a broad range of physical devices.
-
----
+Each release includes universal, ARM64, 32-bit ARM and x86_64 phone builds for both install modes. The replacement build is labelled separately and includes an automatically generated signing-compatibility report. Read that report before installing it over the official app.
 
 ## 🎼 How song credits work
 
@@ -115,7 +91,7 @@ Use only API credentials you are entitled to use, and review the policies of the
 ## ❔ FAQ
 
 **Will this replace my existing BitChord installation?**  
-No. The Credits build is packaged as a separate app so it can coexist with the original BitChord.
+Not when you choose **Keep Original** — it installs separately and leaves official BitChord untouched. The separately labelled **Replace** build uses the original package ID. It can update an installed official version only when the release's INSTALL-COMPATIBILITY report says **MATCH**. If it says MISMATCH or UNVERIFIED, uninstalling the original is required first, and that can erase its private app data.
 
 **Do I need a Credits.fm API key?**  
 The integration supports an optional key. Some metadata may be available through public sources, but results and coverage can vary.
@@ -123,8 +99,8 @@ The integration supports an optional key. Some metadata may be available through
 **Why are some tracks missing credits?**  
 External catalogues do not have complete contributor data for every recording. Try another version of the track or check again later.
 
-**Which devices are supported by the current APK?**  
-The current release asset is ARM64-only and is intended for modern 64-bit ARM Android phones. See the release notes for the exact build details.
+**Which APK should I choose?**  
+Choose **Universal** when you do not know your device architecture. Choose **arm64-v8a** for most modern Android phones, **armeabi-v7a** for older 32-bit ARM devices, or **x86_64** for emulators and x86_64 Chromebooks. These are phone/tablet builds; Android TV is separate.
 
 **Where can I get the original BitChord?**  
 Visit the [upstream BitChord repository](https://github.com/kushagrasinghx/BitChord).
@@ -133,7 +109,7 @@ Visit the [upstream BitChord repository](https://github.com/kushagrasinghx/BitCh
 
 ## 🛠️ Development & contributions
 
-This repository contains the BitChord Credits fork and its build workflow. The automated Android build is defined in [build workflow](https://github.com/heobeep/BitChord/blob/song-credits-apk/.github/workflows/song-credits-apk.yml); the native credits patch is applied by [native patch script](https://github.com/heobeep/BitChord/blob/song-credits-apk/scripts/build-song-credits/apply.py).
+This repository contains the BitChord Credits fork and its build workflow. The automated Android build is defined in [`.github/workflows/song-credits-apk.yml`](.github/workflows/song-credits-apk.yml); the native credits patch is applied by [`scripts/build-song-credits/apply.py`](scripts/build-song-credits/apply.py).
 
 Bug reports and suggestions for the Credits-specific functionality are welcome through [GitHub Issues](https://github.com/heobeep/BitChord/issues). Please include your Android version, device architecture, app version, and steps to reproduce the issue. Do not post API keys, passwords, or private account data.
 
