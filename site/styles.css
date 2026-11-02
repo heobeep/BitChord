@@ -463,11 +463,14 @@ h1 i, h2 i, h3 i { color: inherit; font-style: normal; font-weight: inherit; }
 }
 @media (max-width: 360px) {
   .wrap { width: min(100% - 28px, 1160px); }
-  .brand { font-size: 15px; }
-  .brand img { width: 31px; height: 31px; }
-  .nav a[href="#download"] { min-height: 40px; padding-inline: 10px; font-size: 12px; }
-  .theme-toggle { width: 38px; height: 38px; }
-  h1 { font-size: 42px; }
+  .topbar__inner { gap: 8px; }
+  .brand { gap: 6px; font-size: 13px; }
+  .brand img { width: 28px; height: 28px; }
+  .nav { gap: 8px; }
+  .nav a[href="#download"] { min-height: 38px; padding-inline: 8px; font-size: 11px; }
+  .theme-toggle { width: 36px; height: 36px; }
+  .intro-copy h1 { font-size: clamp(36px, 11vw, 42px); }
+  h1 { font-size: 40px; }
   .step-heading h2 { font-size: 23px; }
 }
 @media (prefers-reduced-motion: reduce) {
