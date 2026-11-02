@@ -1,29 +1,30 @@
 # BitChord Credits website
 
-This is a dependency-free static site. It is intentionally separate from the Android app and does not need Node, a bundler, analytics, or a backend.
+The project site follows the same visual language as the repository: a midnight-plum record sleeve, editorial liner-note typography, warm ivory copy, lavender ink and mint accents.
 
-## Files
+## Source files
 
-- `index.html` — page structure and accessible controls.
-- `styles.css` — responsive theme and layout.
-- `app.js` — release lookup, device picker, checksum link and fail-closed Replace gate.
+- `index.html` — semantic page structure, social preview metadata and accessible controls.
+- `styles.css` — responsive layout, themes, record-inspired artwork and motion preferences.
+- `app.js` — latest-release lookup, device selection, checksum links and fail-closed Replace availability.
+- `assets/credits-cover.svg` — original vector artwork used by both the site and repository README.
 
-## Publish with GitHub Pages
-
-The repository currently has GitHub Pages disabled. A repository admin must enable it once:
-
-1. Open **Settings → Pages** in `heobeep/BitChord`.
-2. Under **Build and deployment**, set **Source** to **GitHub Actions**.
-3. Save. The Pages workflow deploys this folder after changes are merged to `song-credits-apk`.
-
-The workflow is `.github/workflows/pages.yml`. It validates the required files, uploads only this folder and deploys it. It does not run for pull requests.
-
-Expected project-site URL: [https://heobeep.github.io/BitChord/](https://heobeep.github.io/BitChord/).
+The site is static and has no framework, analytics SDK, package installation or backend requirement.
 
 ## Download safety
 
-The page never invents APK names or download URLs. It reads the latest public GitHub release and offers a file only when the exact release asset exists.
+The page offers a specific APK only when the exact release asset exists. Universal is selected by default.
 
-Replace remains disabled unless **all four Replace APKs**, the compatibility report, and the publisher-written `Compatibility check: MATCH` release-note marker are present. This is intentionally fail-closed. Keep Original → Universal remains the default recommendation.
+Replace remains disabled unless all four Replace APKs, the compatibility report and the release publisher's explicit `**Compatibility check: MATCH**` marker are present. This avoids relying on cross-origin reading of the report and fails closed when release data is incomplete.
 
-The only browser preference stored locally is the visitor's light/dark theme choice.
+## GitHub Pages
+
+Repository Pages must be enabled once by an administrator:
+
+1. Open **Settings → Pages** in `heobeep/BitChord`.
+2. Set **Build and deployment → Source** to **GitHub Actions**.
+3. Save the setting.
+
+The workflow `.github/workflows/pages.yml` validates the site on pull requests into `song-credits-apk`, and deploys after validated pushes to that branch.
+
+Expected URL: [https://heobeep.github.io/BitChord/](https://heobeep.github.io/BitChord/).
