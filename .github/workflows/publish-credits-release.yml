@@ -76,6 +76,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Verify the safe install matrix and prepare checksums
+        id: install-matrix
         if: steps.latest-build.outputs.current == 'true'
         shell: bash
         run: |
@@ -112,12 +113,14 @@ jobs:
                 exit 1
               fi
             done
+            echo "compatibility=MATCH" >> "$GITHUB_OUTPUT"
             echo "Replacement compatibility MATCH: publishing all four Replace builds."
           else
             if [ "${#replace_apks[@]}" -ne 0 ]; then
               echo "::error::Compatibility is not MATCH, but Replace APKs are present. Refusing publication."
               exit 1
             fi
+            echo "compatibility=NOT MATCH — Replace builds withheld" >> "$GITHUB_OUTPUT"
             echo "Replacement compatibility is not MATCH: publishing Keep Original only."
           fi
 
@@ -174,8 +177,10 @@ jobs:
             ### Keep original BitChord (recommended)
             Installs BitChord Credits separately and leaves the official BitChord app installed. Universal is the easiest choice if you are unsure which download fits your phone.
 
-            ### Replace original BitChord
-            Replace APKs are included only when INSTALL-COMPATIBILITY.txt reports an exact MATCH for the official release checked during this build. If no Replace APKs are attached, do not uninstall the original app; use Keep Original instead.
+            ### Replacement compatibility
+            **Compatibility check: ${{ steps.install-matrix.outputs.compatibility }}**
+
+            The attached INSTALL-COMPATIBILITY.txt report is the source of truth. Replace APKs are included only when CI verifies an exact MATCH for the official release checked during this build. If the result is not MATCH, do not uninstall the original app; use Keep Original instead.
 
             ### Device builds
             - Universal: easiest choice if you do not know your device type.
