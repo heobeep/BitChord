@@ -91,7 +91,7 @@ Use only API credentials you are entitled to use, and review the policies of the
 ## ❔ FAQ
 
 **Will this replace my existing BitChord installation?**  
-No. The Credits build is packaged as a separate app so it can coexist with the original BitChord.
+Not when you choose **Keep Original** — it installs separately and leaves official BitChord untouched. The separately labelled **Replace** build uses the original package ID. It can update an installed official version only when the release's INSTALL-COMPATIBILITY report says **MATCH**. If it says MISMATCH or UNVERIFIED, uninstalling the original is required first, and that can erase its private app data.
 
 **Do I need a Credits.fm API key?**  
 The integration supports an optional key. Some metadata may be available through public sources, but results and coverage can vary.
@@ -99,8 +99,8 @@ The integration supports an optional key. Some metadata may be available through
 **Why are some tracks missing credits?**  
 External catalogues do not have complete contributor data for every recording. Try another version of the track or check again later.
 
-**Which devices are supported by the current APK?**  
-The current release asset is ARM64-only and is intended for modern 64-bit ARM Android phones. See the release notes for the exact build details.
+**Which APK should I choose?**  
+Choose **Universal** when you do not know your device architecture. Choose **arm64-v8a** for most modern Android phones, **armeabi-v7a** for older 32-bit ARM devices, or **x86_64** for emulators and x86_64 Chromebooks. These are phone/tablet builds; Android TV is separate.
 
 **Where can I get the original BitChord?**  
 Visit the [upstream BitChord repository](https://github.com/kushagrasinghx/BitChord).
