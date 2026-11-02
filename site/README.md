@@ -15,7 +15,7 @@ The site is static and has no framework, analytics SDK, package installation or 
 
 The page offers a specific APK only when the exact release asset exists. Universal is selected by default.
 
-Replace remains disabled unless all four Replace APKs, the compatibility report and the release publisher's explicit `**Compatibility check: MATCH**` marker are present. This avoids relying on cross-origin reading of the report and fails closed when release data is incomplete.
+Replace remains disabled unless all four Replace APKs, the compatibility report and the release publisher's explicit `**Compatibility check: MATCH**` marker are present. This avoids relying on cross-origin reading of the report and fails closed when release data is incomplete. The currently published v1.10.8 release has a signer MISMATCH and still contains legacy Replace assets; do not install those over the official app. The publisher change in the pending PR removes those files on the next validated release refresh.
 
 ## GitHub Pages
 
