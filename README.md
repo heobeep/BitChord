@@ -146,7 +146,7 @@ This repository contains the Android app, shared modules, backend, separate TV a
 | Permanent release publisher | [`.github/workflows/publish-credits-release.yml`](.github/workflows/publish-credits-release.yml) |
 | Interactive project site | `site/` |
 
-Bug reports and Credits-specific suggestions can be raised through [GitHub Issues](https://github.com/heobeep/BitChord/issues) when issue tracking is enabled. Include your Android version, device type, app version and steps to reproduce. **Never post API keys, passwords, signing material or private account data.**
+Issue tracking is currently disabled on this fork. Until it is enabled, propose Credits-specific fixes through a pull request. Include your Android version, device type, app version and steps to reproduce. **Never post API keys, passwords, signing material or private account data.**
 
 Before opening a pull request, read [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md). Do not claim physical-device testing from CI results alone.
 
