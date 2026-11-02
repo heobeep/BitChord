@@ -2,6 +2,11 @@
 
 **Not sure what your phone's CPU architecture is? Choose the Universal APK.** It contains the supported Android builds together, so you do not need to know what ARM means.
 
+> [!CAUTION]
+> **Important for the current v1.10.8 release:** its `INSTALL-COMPATIBILITY.txt` report says **MISMATCH**. The attached Replace APKs cannot update the official BitChord v1.9 app in place. Do not install them over your existing official app. Choose **Keep Original → Universal** to leave the existing app and its data untouched.
+>
+> For future releases, Replace APKs will be published only when the automatic check confirms an in-place update is compatible. Otherwise those downloads will be withheld.
+
 ## 1. Choose how you want BitChord Credits installed
 
 ### Keep original BitChord — recommended
@@ -11,21 +16,19 @@
 - You can keep both apps on the same phone.
 - The launcher name is **BitChord Credits**.
 
-Choose one of the APKs whose name begins with BitChord-Credits-Keep-.
+Choose one of the APKs whose name begins with `BitChord-Credits-Keep-`.
 
-### Replace original BitChord
+### Replace original BitChord — only when the report says MATCH
 
-This build uses the original package ID, com.music.bitchord, so Android sees it as the same app.
+A Replace build uses the original package ID, so Android treats it as the same app.
 
-**Check INSTALL-COMPATIBILITY.txt before installing it.**
+**Only use a Replace APK when `INSTALL-COMPATIBILITY.txt` says MATCH.** That means the official APK checked during the build has the same signing certificate and a lower version number, allowing Android to update it without uninstalling the original.
 
-- **MATCH:** the replacement was signed with the same certificate as the official upstream APK checked during this build, and has a higher versionCode. It should install as an update over that checked release and keep the app's data.
-- **MISMATCH:** Android will reject an install over the official app. To switch, uninstall original BitChord first, then install the Replace APK. Uninstalling an app can erase its private settings, account sessions, offline cache and other app data.
-- **UNVERIFIED:** the official signature could not be checked. Treat this as a mismatch and uninstall first.
+- **MATCH:** the build is compatible with the exact official release checked during this build. The update should keep the app's private data.
+- **MISMATCH:** Android will reject an in-place update. Uninstalling the original first may erase its private settings, account sessions, offline cache and other app data. We do not recommend this route.
+- **UNVERIFIED:** compatibility could not be confirmed. Treat it as unsafe and do not try to install it over the original.
 
-The compatibility result applies to the official release checked during this build. An unofficial, beta or newer installation can have a different signature or higher versionCode. Android's installer is the final authority; never force an update over a signature warning.
-
-Choose one of the APKs whose name begins with BitChord-Credits-Replace-.
+Replace APKs are withheld from future public releases unless the report says MATCH. Do not force an install past an Android signature warning.
 
 ## 2. Choose a device build
 
@@ -42,6 +45,6 @@ All APKs in this release target Android 8.0 (API 26) or newer. These are **phone
 
 - Want to keep your existing BitChord? **Keep → Universal**.
 - Want the smallest download on a modern phone? **Keep → arm64-v8a**.
-- Want to replace BitChord? Check INSTALL-COMPATIBILITY.txt first, then choose **Replace**.
+- Want to replace BitChord? Use **Replace** only when the compatibility report says **MATCH**. The current v1.10.8 release does not pass this check.
 
-Each APK is signed with the persistent BitChord Credits signing key. The SHA-256 checksum files beside the APKs can be used to verify the downloads.
+Each published APK has a matching SHA-256 checksum file beside it. The checksum can help verify that the download arrived intact.
