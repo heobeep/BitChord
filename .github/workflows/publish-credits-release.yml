@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   publish:
-    name: Publish the verified ARM64 APK
+    name: Publish all verified Android install builds
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     env:
@@ -48,13 +48,9 @@ jobs:
             exit 1
           fi
           TAG="credits-v${VERSION}"
-          APK_NAME="BitChord-Credits-v${VERSION}_arm64-v8a.apk"
-          CHECKSUM_NAME="${APK_NAME}.sha256"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "title=BitChord Credits v$VERSION" >> "$GITHUB_OUTPUT"
-          echo "apk_name=$APK_NAME" >> "$GITHUB_OUTPUT"
-          echo "checksum_name=$CHECKSUM_NAME" >> "$GITHUB_OUTPUT"
           echo "Preparing $TAG from $SOURCE_COMMIT_SHA"
 
       - name: Check whether this version is already published
