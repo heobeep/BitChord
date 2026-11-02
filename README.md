@@ -1,128 +1,165 @@
 <div align="center">
 
-<br/>
+<br>
 
-<img src="Logo.png" alt="BitChord Credits app icon" width="150" />
+<img src="Logo.png" alt="BitChord Credits icon" width="112">
 
 # BitChord Credits
 
-### Your music, with the people behind it.
+### Discover the people behind the music.
 
-An independent BitChord community fork that brings **song credits into the listening experience** — so you can look beyond the track title and discover the people who helped make the music.
+An independent community fork of **[BitChord](https://github.com/kushagrasinghx/BitChord)** with a native song-credits experience — bringing performers, musicians, writers, producers and more into the listening experience.
 
-<br/>
+<br>
 
-[![Latest release](https://img.shields.io/github/v/release/heobeep/BitChord?style=for-the-badge&labelColor=171923)](https://github.com/heobeep/BitChord/releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/heobeep/BitChord/total?style=for-the-badge&labelColor=171923)](https://github.com/heobeep/BitChord/releases)
-[![License](https://img.shields.io/github/license/heobeep/BitChord?style=for-the-badge&labelColor=171923)](LICENSE)
+[![APK build](https://img.shields.io/github/actions/workflow/status/heobeep/BitChord/song-credits-apk.yml?branch=song-credits-apk&style=for-the-badge&label=APK%20build)](https://github.com/heobeep/BitChord/actions/workflows/song-credits-apk.yml)
+[![Latest release](https://img.shields.io/github/v/release/heobeep/BitChord?style=for-the-badge)](https://github.com/heobeep/BitChord/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/heobeep/BitChord/total?style=for-the-badge)](https://github.com/heobeep/BitChord/releases)
+[![License](https://img.shields.io/github/license/heobeep/BitChord?style=for-the-badge)](LICENSE)
 
-<br/>
+<br>
 
-[**Download**](#-download) · [**What’s different**](#-whats-different) · [**Setup**](#-getting-started) · [**FAQ**](#-faq) · [**Credits & license**](#-credits--license)
+[**Interactive download guide ↗**](https://heobeep.github.io/BitChord/) · [**Latest releases**](https://github.com/heobeep/BitChord/releases) · [**Source code**](https://github.com/heobeep/BitChord)
 
-<br/>
+<br>
 
-<img src="Banner.png" alt="BitChord Credits" width="100%" />
+<img src="Banner.png" alt="BitChord Credits banner" width="100%">
 
 </div>
 
 > [!NOTE]
-> **This is an independent community fork of [BitChord](https://github.com/kushagrasinghx/BitChord), not the official upstream app.** It keeps the BitChord music-player foundation and adds a native song-credits experience.
+> **BitChord Credits is an independent community fork, not the official upstream app.** It builds on the BitChord music-player project and adds a native song-credits experience. It is not affiliated with or endorsed by the upstream maintainers.
 
 ---
 
-## ✨ What’s different
+## Start here
 
-### Song credits, built into the app
+**Just want to install it?** Open the [interactive download guide](https://heobeep.github.io/BitChord/). It checks the latest published release, lets you choose an install mode and device, and only offers downloads that actually exist in that release.
 
-- **Native credits view** — open a track’s song information and explore the people credited on it.
-- **Credits.fm integration** — connect an optional Credits.fm API key from the app’s account and integrations settings.
-- **A setting that stays out of your way** — turn song credits on or off from Appearance.
-- **Metadata fallback** — supporting metadata can be looked up through the available public music metadata sources. Credits depend on what those catalogues have for a track, so some songs may have limited or no results.
+**Not sure what ARM means?** Choose **Keep Original → Universal**. It is the easiest option and installs separately from your existing BitChord.
 
-### The BitChord experience is still here
+### Choose your install
 
-BitChord Credits is built on BitChord, so the fork retains the music-player foundation and its existing features, including:
+| Option | What happens | Recommendation |
+|---|---|---|
+| **Keep Original** | Installs BitChord Credits as a separate app. Your official BitChord stays installed and untouched. | **Recommended** |
+| **Replace Original** | Uses the original package ID and can update the official app only when the compatibility report confirms an in-place update is safe. | Use only on an exact **MATCH** |
 
-- YouTube Music search, browsing and playback.
-- Playlists, library, local music and offline downloads.
-- Lyrics, artwork and dynamic theming.
-- Last.fm and ListenBrainz scrobbling.
-- Playback controls, queue tools, sleep timer and audio settings.
+Replace downloads are deliberately withheld when compatibility is a mismatch or cannot be verified. Android checks the app's signing certificate as well as its package and version. Never force an install past a signature warning or uninstall your original app just to try this fork; uninstalling can erase private app data.
 
-The exact feature set can evolve with the upstream project and this fork.
+### Choose your device build
 
----
+| Build | Intended device | Choose it when… |
+|---|---|---|
+| **Universal** | ARM64, older 32-bit ARM and x86_64 Android devices | You are unsure. This is the default recommendation. |
+| **arm64-v8a** | Most modern Android phones and tablets | You know your device is 64-bit ARM and want a smaller download. |
+| **armeabi-v7a** | Older 32-bit ARM Android devices | You know your device uses 32-bit ARM. |
+| **x86_64** | Android emulators and x86_64 Chromebooks | You are using an x86_64 Android environment. |
 
-## 📥 Download
-
-**[Open the download guide](DOWNLOADS.md)** before choosing an APK. It separates the install choice (keep the original or replace it) from the device choice, and explains when an in-place update is actually compatible.
-
-**Not sure what ARM is?** Choose **Keep Original → Universal** from the latest release. It is the easiest option and does not replace your existing BitChord installation.
-
-[![Get the latest BitChord Credits builds](https://img.shields.io/badge/Download-BitChord%20Credits-6e56cf?style=for-the-badge&logo=github)](https://github.com/heobeep/BitChord/releases/latest)
-
-Every release includes **Keep Original** builds for Universal, ARM64, 32-bit ARM and x86_64 phones. **Replace** builds are published only when the automatic check confirms they can update the checked official app without uninstalling it. Important: the current v1.10.8 compatibility report says **MISMATCH**. Do not install its Replace APK over the official BitChord app. Use **Keep Original → Universal** instead.
-
-## 🎼 How song credits work
-
-1. Play a track and open its **Song Info** screen.
-2. Open the credits section to see the available contributor information.
-3. Add a Credits.fm API key in **Settings → Account & Integrations** when you want to use your own key.
-4. Use the **Song credits** option in **Settings → Appearance** to control the feature.
-
-A configured ListenBrainz integration may also be used for supporting metadata lookup. Its token is not sent to Credits.fm. You do not need to configure every integration just to use the player.
-
-**Coverage varies.** Credits are supplied by external music metadata services; missing credits do not necessarily mean a track has no credited contributors.
+These are phone/tablet builds. Android TV has its own separate app and release path.
 
 ---
 
-## 🔐 Privacy & data
+## What makes Credits different?
 
-- API keys and integration settings are handled by the app’s existing account/settings infrastructure.
+### Native song credits
+
+Open a track's **Song Info** and explore the contributor information available for that recording. Depending on the catalogue, this can include performers, musicians, songwriters, composers, producers, arrangers, engineers, publishers and labels.
+
+### Optional metadata integrations
+
+- **Credits.fm** — connect an optional API key through the app's account and integrations settings.
+- **Supporting music metadata** — public music metadata sources can help enrich the information available for a track.
+- **ListenBrainz** — a connected integration may be used for supporting metadata lookup. Its token is not forwarded to Credits.fm.
+
+Credits depend on what external catalogues have for each recording. Missing results do not mean a track has no credited contributors.
+
+### The BitChord foundation stays familiar
+
+The fork retains the wider music-player foundation, including YouTube Music search and playback, playlists, library, local music, lyrics, artwork, dynamic theming, Last.fm and ListenBrainz scrobbling, queue tools, sleep timer and audio settings. The exact feature set can evolve with upstream and this fork.
+
+---
+
+## Privacy & data
+
+- Song-credit lookups require network access and may send track-identifying metadata, such as title and artist, to the relevant metadata provider.
 - Your ListenBrainz token is not forwarded to Credits.fm.
-- Song-credit lookups require network access and may send track-identifying metadata (such as title and artist) to the relevant metadata provider.
+- API keys and integration settings are handled through the app's existing account/settings infrastructure.
 - BitChord Credits does not host a catalogue of music files.
 
-Use only API credentials you are entitled to use, and review the policies of the external services you connect.
+Use only credentials you are entitled to use and review the policies of the external services you connect.
 
 ---
 
-## ❔ FAQ
+## Frequently asked questions
 
-**Will this replace my existing BitChord installation?**  
-Not when you choose **Keep Original** — it installs separately and leaves official BitChord untouched. A **Replace** APK is published only when the release's INSTALL-COMPATIBILITY report says **MATCH**. The current v1.10.8 report says **MISMATCH**, so do not use its Replace APK over the official app. Uninstalling the original first can erase its private app data.
+<details>
+<summary><strong>Will BitChord Credits replace my existing BitChord?</strong></summary>
 
-**Do I need a Credits.fm API key?**  
-The integration supports an optional key. Some metadata may be available through public sources, but results and coverage can vary.
+Not when you choose **Keep Original**. It installs separately and leaves the official BitChord app and its data in place. Replace is offered only when the release compatibility report confirms an exact MATCH for the official APK checked by CI.
 
-**Why are some tracks missing credits?**  
-External catalogues do not have complete contributor data for every recording. Try another version of the track or check again later.
+</details>
 
-**Which APK should I choose?**  
-Choose **Universal** when you do not know your device architecture. Choose **arm64-v8a** for most modern Android phones, **armeabi-v7a** for older 32-bit ARM devices, or **x86_64** for emulators and x86_64 Chromebooks. These are phone/tablet builds; Android TV is separate.
+<details>
+<summary><strong>Why might Replace be missing from a release?</strong></summary>
 
-**Where can I get the original BitChord?**  
-Visit the [upstream BitChord repository](https://github.com/kushagrasinghx/BitChord).
+The official app and the Credits build must have a compatible package ID, signing certificate and version. If any check fails or cannot be completed, Replace files are removed from the release. This protects users from an Android signature rejection or a forced uninstall.
+
+</details>
+
+<details>
+<summary><strong>Do I need a Credits.fm API key?</strong></summary>
+
+No. The integration supports an optional key. Some supporting metadata may be available through public sources, but results and coverage can vary.
+
+</details>
+
+<details>
+<summary><strong>Why do some songs have no credits?</strong></summary>
+
+External music catalogues are incomplete. Try another recording/version of the track or check again later.
+
+</details>
+
+<details>
+<summary><strong>Is BitChord Credits the official BitChord app?</strong></summary>
+
+No. It is an independent community fork based on [upstream BitChord](https://github.com/kushagrasinghx/BitChord).
+
+</details>
 
 ---
 
-## 🛠️ Development & contributions
+## For contributors
 
-This repository contains the BitChord Credits fork and its build workflow. The automated Android build is defined in [`.github/workflows/song-credits-apk.yml`](.github/workflows/song-credits-apk.yml); the native credits patch is applied by [`scripts/build-song-credits/apply.py`](scripts/build-song-credits/apply.py).
+This repository contains the Android app, shared modules, backend, separate TV and Wear OS components, web app, and the Credits release tooling.
 
-Bug reports and suggestions for the Credits-specific functionality are welcome through [GitHub Issues](https://github.com/heobeep/BitChord/issues). Please include your Android version, device architecture, app version, and steps to reproduce the issue. Do not post API keys, passwords, or private account data.
+| Area | Location |
+|---|---|
+| Android app | `app/`, `shared/`, `sharedUi/` |
+| Android TV | `tv/` |
+| Wear OS | `wearos/` |
+| Web app | `web/` |
+| Backend | `backend/` |
+| Credits patch and build helpers | `scripts/build-song-credits/` |
+| Android APK workflow | [`.github/workflows/song-credits-apk.yml`](.github/workflows/song-credits-apk.yml) |
+| Permanent release publisher | [`.github/workflows/publish-credits-release.yml`](.github/workflows/publish-credits-release.yml) |
+| Interactive project site | `site/` |
+
+Bug reports and Credits-specific suggestions can be raised through [GitHub Issues](https://github.com/heobeep/BitChord/issues) when issue tracking is enabled. Include your Android version, device type, app version and steps to reproduce. **Never post API keys, passwords, signing material or private account data.**
+
+Before opening a pull request, read [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md). Do not claim physical-device testing from CI results alone.
 
 ---
 
-## 🙏 Credits & license
+## Credits & license
 
-BitChord Credits is built on the work of the original [BitChord project](https://github.com/kushagrasinghx/BitChord) and its contributors. Thanks to the upstream developers and to the open music-metadata services that make richer credits possible.
+BitChord Credits builds on the work of the original [BitChord project](https://github.com/kushagrasinghx/BitChord) and its contributors. Thank you to the upstream developers and the open music-metadata services that make richer credits possible.
 
 This project is distributed under the **GNU General Public License v3.0 (GPL-3.0)**. See [LICENSE](LICENSE) for the full terms. Source changes and redistributed builds must comply with that license.
 
 <div align="center">
 
-**Independent project · Not affiliated with or endorsed by YouTube, Google, Credits.fm, or the upstream BitChord maintainers.**
+**Independent project · Not affiliated with or endorsed by YouTube, Google, Credits.fm or the upstream BitChord maintainers.**
 
 </div>
