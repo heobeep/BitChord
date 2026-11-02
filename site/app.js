@@ -176,7 +176,7 @@
       state.device = "universal";
       el("deviceSelect").value = "universal";
       render();
-      document.querySelector(".download-card").scrollIntoView({ behavior: "smooth", block: "center" });
+      document.querySelector(".download-main").scrollIntoView({ behavior: "smooth", block: "center" });
     });
     el("downloadButton").addEventListener("click", event => {
       if (el("downloadButton").getAttribute("aria-disabled") === "true") event.preventDefault();
