@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#100e18">
+  <meta name="description" content="BitChord Credits — discover the people behind the music. An independent BitChord community fork with native song credits.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="BitChord Credits — Discover the people behind the music">
+  <meta property="og:description" content="A familiar music-player foundation, with a native way to look beyond the track title and meet the people who made the recording.">
+  <meta property="og:image" content="https://heobeep.github.io/BitChord/assets/credits-cover.svg">
+  <meta name="twitter:card" content="summary_large_image">
+  <title>BitChord Credits — Discover the people behind the music</title>
+  <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/heobeep/BitChord/song-credits-apk/Logo.png">
+  <link rel="stylesheet" href="./styles.css">
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="topbar">
+    <div class="wrap topbar__inner">
+      <a class="brand" href="#top" aria-label="BitChord Credits home">
+        <img src="https://raw.githubusercontent.com/heobeep/BitChord/song-credits-apk/Logo.png" alt="" width="38" height="38">
+        <span>BitChord <em>Credits</em></span>
+      </a>
+      <nav class="nav" aria-label="Main navigation">
+        <a href="#download">Get the app</a>
+        <a href="#about">The credits</a>
+        <a href="#faq">Good to know</a>
+        <a href="https://github.com/heobeep/BitChord" target="_blank" rel="noreferrer">GitHub <span aria-hidden="true">↗</span></a>
+        <button class="theme-toggle" id="themeToggle" type="button" aria-label="Switch color theme" title="Switch color theme">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v2m0 14v2M3 12h2m14 0h2M5.64 5.64l1.42 1.42m9.88 9.88 1.42 1.42m0-12.72-1.42 1.42m-9.88 9.88-1.42 1.42M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"/></svg>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="intro wrap" id="top">
+      <div class="intro-kicker"><span class="eyebrow-line"></span> AN INDEPENDENT MUSIC PROJECT <span class="kicker-year">EST. IN THE LISTENING ROOM</span></div>
+      <figure class="cover">
+        <img src="./assets/credits-cover.svg" alt="BitChord Credits album-cover artwork: a violet vinyl record and the line Discover the people behind the music." width="1600" height="560">
+      </figure>
+      <div class="intro-under">
+        <p>A familiar music-player foundation, with a native way to look beyond the track title and meet the people who made the recording.</p>
+        <a class="under-link" href="#download">Find your safe download <span aria-hidden="true">↘</span></a>
+      </div>
+    </section>
+
+    <section class="release-line wrap" aria-live="polite">
+      <div class="release-mark"><span>♫</span></div>
+      <div class="release-copy">
+        <span class="micro-label">LATEST RELEASE</span>
+        <strong id="releaseTitle">Checking the latest release…</strong>
+        <span id="releaseSubtitle">The download guide verifies published files before offering them.</span>
+      </div>
+      <span class="release-state" id="releaseState"><i></i><span>Checking</span></span>
+    </section>
+
+    <section class="section wrap download-section" id="download">
+      <div class="section-head">
+        <div>
+          <p class="section-index">01 <span>/</span> THE INSTALLER</p>
+          <h1>Make room for<br><i>the credits.</i></h1>
+        </div>
+        <p class="section-deck">No guesswork, no risky installs. Choose whether to keep your current BitChord, then pick the build that fits your device.</p>
+      </div>
+
+      <div class="download-layout">
+        <div class="download-main">
+          <div class="step-heading">
+            <span class="step-index">A</span>
+            <div><span class="micro-label">FIRST THINGS FIRST</span><h2>How should it install?</h2></div>
+          </div>
+
+          <div class="mode-grid" role="group" aria-label="Install mode">
+            <button class="mode-option is-selected" type="button" data-mode="keep" aria-pressed="true">
+              <span class="mode-icon keep-icon" aria-hidden="true">↗</span>
+              <span class="mode-copy"><strong>Keep my original</strong><small>Install Credits separately. Your current BitChord stays right where it is.</small></span>
+              <span class="mode-stamp">THE SAFE CHOICE</span>
+              <span class="mode-check" aria-hidden="true">✓</span>
+            </button>
+            <button class="mode-option" type="button" data-mode="replace" aria-pressed="false" id="replaceMode" disabled>
+              <span class="mode-icon replace-icon" aria-hidden="true">⟳</span>
+              <span class="mode-copy"><strong>Replace my original</strong><small>Only offered when Android can verify a safe in-place update.</small></span>
+              <span class="mode-stamp">COMPATIBILITY GATED</span>
+              <span class="mode-check" aria-hidden="true">✓</span>
+            </button>
+          </div>
+
+          <div class="safety-note" id="modeNote">
+            <span class="safety-note__icon" aria-hidden="true">✓</span>
+            <p><strong>Keep your music setup intact.</strong><br>Your original app, settings and private data are left untouched.</p>
+          </div>
+
+          <div class="step-heading step-heading--device">
+            <span class="step-index">B</span>
+            <div><span class="micro-label">THE RIGHT PRESSING</span><h2>Which device is yours?</h2></div>
+          </div>
+
+          <label class="select-label" for="deviceSelect">Choose a device type — or take the easy route.</label>
+          <div class="select-wrap">
+            <select id="deviceSelect">
+              <option value="universal">I’m not sure — Universal (recommended)</option>
+              <option value="arm64-v8a">Most modern Android phones — ARM64</option>
+              <option value="armeabi-v7a">Older 32-bit Android phone — ARMv7</option>
+              <option value="x86_64">Android emulator or x86_64 Chromebook</option>
+            </select>
+            <span aria-hidden="true">⌄</span>
+          </div>
+          <p class="device-hint" id="deviceHint">Universal includes all supported architectures. It is larger, but you do not need to identify your phone’s processor.</p>
+
+          <div class="download-result">
+            <div class="result-topline"><span class="micro-label">YOUR COPY IS READY WHEN VERIFIED</span><span class="file-tag" id="fileTag">UNIVERSAL</span></div>
+            <div class="download-result__body">
+              <div class="result-name"><strong id="downloadName">Waiting for release information</strong><span class="result-meta">Android installer · verified release asset</span></div>
+              <a class="button button--download is-disabled" id="downloadButton" href="https://github.com/heobeep/BitChord/releases/latest" aria-disabled="true">Checking availability <span aria-hidden="true">↓</span></a>
+            </div>
+            <div class="download-result__foot">
+              <a id="checksumLink" href="https://github.com/heobeep/BitChord/releases/latest" target="_blank" rel="noreferrer">SHA-256 checksum ↗</a>
+              <a href="https://github.com/heobeep/BitChord/releases" target="_blank" rel="noreferrer">Every release ↗</a>
+              <p id="downloadStatus" role="status" aria-live="polite">We’ll enable a download only when the exact release asset is present.</p>
+            </div>
+          </div>
+        </div>
+
+        <aside class="download-aside">
+          <div class="aside-art">
+            <div class="aside-disc" aria-hidden="true"><span></span></div>
+            <p class="micro-label">A SMALL REMINDER</p>
+            <h3>Keep the original.<br><i>Keep the memories.</i></h3>
+            <p>Universal is the easy option when you don’t know your device architecture. Your phone can take care of the rest.</p>
+            <button class="text-button" id="chooseUniversal" type="button">Select Universal <span aria-hidden="true">↗</span></button>
+          </div>
+          <div class="aside-note">
+            <p class="micro-label">WHY NO REPLACE DOWNLOAD?</p>
+            <p>Android requires a matching signing certificate as well as a compatible package and version. The published v1.10.8 release still lists legacy Replace files despite a MISMATCH report; do not install those over your original app. Use Keep Original until the next validated release removes them.</p>
+            <a href="https://github.com/heobeep/BitChord/blob/song-credits-apk/DOWNLOADS.md">Read the install notes ↗</a>
+          </div>
+          <div class="device-key">
+            <p class="micro-label">THE DEVICE KEY</p>
+            <div><b>01</b><span><strong>Universal</strong><small>Not sure? Pick this.</small></span></div>
+            <div><b>02</b><span><strong>ARM64</strong><small>Most recent phones.</small></span></div>
+            <div><b>03</b><span><strong>ARMv7</strong><small>Older 32-bit phones.</small></span></div>
+            <div><b>04</b><span><strong>x86_64</strong><small>Emulators & Chromebooks.</small></span></div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="credits-section" id="about">
+      <div class="wrap credits-inner">
+        <div class="credits-art" aria-hidden="true">
+          <div class="credits-art__record"><div class="credits-art__label">SIDE B<span>WHO MADE THIS?</span></div></div>
+          <div class="credits-art__orbit"></div>
+          <span class="credits-art__note">♫</span>
+        </div>
+        <div class="credits-copy">
+          <p class="section-index">02 <span>/</span> THE LINER NOTES</p>
+          <h2>The track is only<br><i>half the story.</i></h2>
+          <p>Open a song’s Info and explore the people credited on the recording: performers, musicians, songwriters, composers, producers, arrangers, engineers and more.</p>
+          <div class="credit-roles"><span>PERFORMERS</span><span>WRITERS</span><span>PRODUCERS</span><span>ENGINEERS</span><span>LABELS</span></div>
+          <p class="coverage-note">Credits coverage depends on the external music catalogues. Some recordings may have limited or no contributor information.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section wrap foundation">
+      <div class="section-head">
+        <div><p class="section-index">03 <span>/</span> THE FOUNDATION</p><h2>Same listening room.<br><i>More to discover.</i></h2></div>
+        <p class="section-deck">Credits is built on the BitChord player foundation. The music experience stays familiar while the liner notes get a little richer.</p>
+      </div>
+      <div class="foundation-list">
+        <div><span>01</span><strong>Find & play</strong><p>YouTube Music search, browsing and playback.</p></div>
+        <div><span>02</span><strong>Your library</strong><p>Playlists, local music, offline listening and queue tools.</p></div>
+        <div><span>03</span><strong>Listen deeper</strong><p>Lyrics, artwork, dynamic theming and song information.</p></div>
+        <div><span>04</span><strong>Stay connected</strong><p>Last.fm and ListenBrainz scrobbling, plus optional metadata integrations.</p></div>
+      </div>
+    </section>
+
+    <section class="section wrap faq-section" id="faq">
+      <div class="section-head">
+        <div><p class="section-index">04 <span>/</span> BEFORE YOU PRESS PLAY</p><h2>Good to <i>know.</i></h2></div>
+        <p class="section-deck">A few things worth knowing before installing or connecting an integration.</p>
+      </div>
+      <div class="faq-list">
+        <details class="faq-item"><summary>Will this replace my existing BitChord?</summary><p>No. <strong>Keep Original</strong> installs separately and leaves official BitChord in place. Replace is offered only when the release's compatibility check confirms a safe in-place update.</p></details>
+        <details class="faq-item"><summary>Why might Replace be unavailable?</summary><p>Android checks the package, signing certificate and version. The currently published v1.10.8 release has a MISMATCH report: do not install its legacy Replace APKs over your original app. Use Keep Original until the next validated release refreshes the assets.</p></details>
+        <details class="faq-item"><summary>Do I need to know what ARM means?</summary><p>No. Choose Universal. It includes the supported Android architectures together, so you do not need to identify your phone’s processor.</p></details>
+        <details class="faq-item"><summary>Do I need a Credits.fm API key?</summary><p>No. The integration supports an optional key. Some supporting metadata may be available through public sources, but results and coverage vary.</p></details>
+        <details class="faq-item"><summary>Is BitChord Credits the official BitChord app?</summary><p>No. This is an independent community fork based on <a href="https://github.com/kushagrasinghx/BitChord" target="_blank" rel="noreferrer">upstream BitChord</a>; it is not affiliated with or endorsed by the upstream maintainers.</p></details>
+      </div>
+    </section>
+
+    <section class="closing wrap">
+      <p class="micro-label">ONE LAST THING</p>
+      <h2>For everyone who made<br><i>the song you love.</i></h2>
+      <a class="button button--primary" href="#download">Find your download <span aria-hidden="true">↑</span></a>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer__inner">
+      <div class="footer-mark"><img src="https://raw.githubusercontent.com/heobeep/BitChord/song-credits-apk/Logo.png" alt="" width="34" height="34"><span>BitChord <em>Credits</em></span></div>
+      <p>Independent community project · GPL-3.0 · Not affiliated with YouTube, Google, Credits.fm or upstream BitChord.</p>
+      <div class="footer-links"><a href="https://github.com/heobeep/BitChord">Source</a><a href="https://github.com/heobeep/BitChord/releases">Releases</a><a href="https://github.com/kushagrasinghx/BitChord">Upstream</a></div>
+    </div>
+  </footer>
+</body>
+</html>

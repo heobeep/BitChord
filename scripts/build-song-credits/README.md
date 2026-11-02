@@ -9,4 +9,4 @@ Each mode is built as four installable APKs: universal, arm64-v8a, armeabi-v7a, 
 
 The build runs shared metadata tests and Credits app unit tests, checks package IDs and signing fingerprints for every APK, checks the official signing certificate, calculates compatibility, and uploads all APKs plus DOWNLOADS.md and INSTALL-COMPATIBILITY.txt.
 
-Workflow: Actions → Build BitChord Credits APK. Successful runs are published automatically by publish-credits-release.yml, provided the run still corresponds to the current branch head.
+Workflow: GitHub Actions → Build BitChord Credits APK. A successful build uploads a short-lived artifact. The separate publish-credits-release.yml workflow then checks that the build is still from the current song-credits-apk branch head, verifies the expected install files, and creates a permanent GitHub Release. Keep Original is required; Replace files are accepted only when the compatibility report says MATCH. The publisher creates SHA-256 files for the published APKs and release guidance. Failed or stale builds never publish.

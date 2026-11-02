@@ -1,0 +1,73 @@
+name: Publish BitChord Credits website
+
+on:
+  push:
+    branches: [song-credits-apk]
+    paths:
+      - "site/**"
+      - ".github/workflows/pages.yml"
+  pull_request:
+    branches: [song-credits-apk]
+    paths:
+      - "site/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate the website
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate site structure and download safety controls
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s site/index.html
+          test -s site/styles.css
+          test -s site/app.js
+          test -s site/assets/credits-cover.svg
+          grep -q 'id="downloadButton"' site/index.html
+          grep -q 'id="deviceSelect"' site/index.html
+          grep -q 'id="replaceMode"' site/index.html
+          grep -q 'INSTALL-COMPATIBILITY.txt' site/app.js
+          grep -q 'Compatibility check: MATCH' site/app.js
+          grep -q 'allReplaceAssets' site/app.js
+          echo "Website structure, cover artwork and fail-closed download controls are present."
+
+  deploy:
+    name: Deploy to GitHub Pages
+    if: github.event_name != 'pull_request'
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload website artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: ./site
+
+      - name: Deploy website
+        id: deployment
+        uses: actions/deploy-pages@v4

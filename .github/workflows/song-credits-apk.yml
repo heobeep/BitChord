@@ -2,9 +2,9 @@ name: Build BitChord Credits APK
 
 on:
   push:
-    branches: [song-credits-apk]
+    branches: [song-credits-apk, release-readiness]
   pull_request:
-    branches: [main]
+    branches: [main, song-credits-apk]
   workflow_dispatch:
 
 permissions:
@@ -214,6 +214,16 @@ jobs:
             echo "A MATCH applies only to the official release checked during this build. A different installed build may have a different signer or higher versionCode."
           } > release-assets/INSTALL-COMPATIBILITY.txt
           cat release-assets/INSTALL-COMPATIBILITY.txt
+      - name: Withhold unsafe Replace downloads
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! grep -Eq '^INSTALL COMPATIBILITY: MATCH -' release-assets/INSTALL-COMPATIBILITY.txt; then
+            echo 'Compatibility is not MATCH; removing all Replace APKs from public downloads.'
+            rm -f release-assets/BitChord-Credits-Replace-*.apk
+          else
+            echo 'Compatibility is MATCH; Replace APKs may be included.'
+          fi
       - name: Include the download guide
         run: cp DOWNLOADS.md release-assets/DOWNLOADS.md
       - name: Upload all installable APKs and install guidance
@@ -223,3 +233,4 @@ jobs:
           path: release-assets/*
           if-no-files-found: error
           retention-days: 14
+
