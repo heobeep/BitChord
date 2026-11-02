@@ -2,7 +2,19 @@ name: Build BitChord Credits APK
 
 on:
   push:
-    branches: [song-credits-apk]
+    branches: [main]
+    paths:
+      - 'app/**'
+      - 'shared/**'
+      - 'sharedUi/**'
+      - 'native/**'
+      - 'wearos/**'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'gradle/**'
+      - 'gradle.properties'
+      - 'scripts/build-song-credits/**'
+      - '.github/workflows/song-credits-apk.yml'
   pull_request:
     branches: [main]
   workflow_dispatch:
