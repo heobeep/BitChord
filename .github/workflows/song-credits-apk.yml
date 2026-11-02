@@ -2,9 +2,9 @@ name: Build BitChord Credits APK
 
 on:
   push:
-    branches: [song-credits-apk]
+    branches: [song-credits-apk, release-readiness]
   pull_request:
-    branches: [main]
+    branches: [main, song-credits-apk]
   release:
     types: [published]
   workflow_dispatch:
