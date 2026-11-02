@@ -60,6 +60,12 @@ android {
             dimension = "env"
             resValue("string", "app_name", "BitChord")
         }
+        // Pairs only with the standalone BitChord Credits phone edition.
+        create("credits") {
+            dimension = "env"
+            applicationId = "com.music.bitchord.songcredits"
+            resValue("string", "app_name", "BitChord Credits")
+        }
     }
 
     signingConfigs {
