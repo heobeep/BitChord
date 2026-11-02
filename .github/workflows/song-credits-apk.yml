@@ -57,11 +57,23 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          grep -F 'applicationId = if (providers.gradleProperty("bitchord.credits.cleanSwitch").orNull == "true") "com.music.bitchord" else "com.music.bitchord.songcredits"' app/build.gradle.kts
-          grep -F 'signingConfig = signingConfigs.getByName("creditsStable")' app/build.gradle.kts
-          grep -F 'BitChord-Credits-Replace-' app/build.gradle.kts
-          grep -F 'BitChord-Credits-Keep-' app/build.gradle.kts
-          grep -F 'BitChord Credits · Replace' app/build.gradle.kts
+          echo "Generated Credits product flavor:"
+          sed -n '/create("credits")/,/^[[:space:]]*}/p' app/build.gradle.kts
+          echo "Generated signing configuration:"
+          sed -n '/signingConfigs {/,/^[[:space:]]*}/p' app/build.gradle.kts
+          for token in \
+            'applicationId = if' \
+            'com.music.bitchord' \
+            'com.music.bitchord.songcredits' \
+            'creditsStable' \
+            'BitChord-Credits-Replace-' \
+            'BitChord-Credits-Keep-' \
+            'BitChord Credits'; do
+            if ! grep -Fq "$token" app/build.gradle.kts; then
+              echo "::error::Generated Gradle configuration is missing: $token"
+              exit 1
+            fi
+          done
           echo "Both package IDs, app labels, updater prefixes and permanent signing config are present."
 
       - name: Run tests and build both install modes
