@@ -487,6 +487,25 @@ class SongCreditsMatchingTest {
     }
 
     @Test
+    fun matchesIndianRecordingWithMultipleArtistCredits() {
+        val response = Json.parseToJsonElement(
+            """{"recordings":[{"id":"33333333-3333-4333-8333-333333333333","title":"Kesariya","artist-credit":[{"name":"Pritam","joinphrase":", "},{"name":"Arijit Singh","joinphrase":" & "},{"name":"Amitabh Bhattacharya"}]}]}""",
+        )
+        assertEquals(
+            "33333333-3333-4333-8333-333333333333",
+            SongCreditsParser.bestRecordingMbid(response, "Kesariya", "Arijit Singh - Topic"),
+        )
+    }
+
+    @Test
+    fun rejectsSameTitleWhenTheRecordingArtistDoesNotMatch() {
+        val response = Json.parseToJsonElement(
+            """{"recordings":[{"id":"44444444-4444-4444-8444-444444444444","title":"Kesariya","artist-credit":[{"name":"Another Singer"}]}]}""",
+        )
+        assertNull(SongCreditsParser.bestRecordingMbid(response, "Kesariya", "Arijit Singh - Topic"))
+    }
+
+    @Test
     fun doesNotMatchAnUnrelatedRecordingOrArtist() {
         val response = Json.parseToJsonElement(
             """{"recordings":[{"id":"22222222-2222-4222-8222-222222222222","title":"Different Song","artist-credit":[{"name":"Example Artist"}]}]}""",

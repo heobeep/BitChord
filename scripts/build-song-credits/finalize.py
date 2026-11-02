@@ -82,6 +82,113 @@ def mark_patch_strings_without_translations(resources_dir: Path) -> None:
     )
 
 
+
+def matching_kotlin_brace(source: str, opening: int) -> int:
+    """Find a Kotlin block's closing brace without counting braces in strings/comments."""
+    if opening < 0 or source[opening] != "{":
+        raise SystemExit("Kotlin block opening brace not found")
+    depth = 0
+    index = opening
+    while index < len(source):
+        if source.startswith('"""', index):
+            end = source.find('"""', index + 3)
+            if end < 0:
+                raise SystemExit("Unterminated Kotlin raw string")
+            index = end + 3
+            continue
+        if source.startswith("//", index):
+            end = source.find("\n", index + 2)
+            index = len(source) if end < 0 else end + 1
+            continue
+        if source.startswith("/*", index):
+            end = source.find("*/", index + 2)
+            if end < 0:
+                raise SystemExit("Unterminated Kotlin block comment")
+            index = end + 2
+            continue
+        char = source[index]
+        if char == '"':
+            index += 1
+            while index < len(source):
+                if source[index] == "\\":
+                    index += 2
+                elif source[index] == '"':
+                    index += 1
+                    break
+                else:
+                    index += 1
+            continue
+        if char == "'":
+            index += 1
+            while index < len(source):
+                if source[index] == "\\":
+                    index += 2
+                elif source[index] == "'":
+                    index += 1
+                    break
+                else:
+                    index += 1
+            continue
+        if char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return index
+        index += 1
+    raise SystemExit("Unterminated Kotlin block")
+
+
+def add_credits_fm_shortcuts(source: str) -> str:
+    """Put native-looking links below the Credits.fm card and its description."""
+    if "Get a free Credits.fm API key" in source:
+        return source
+    anchor = "onClick = onOpenCreditsFmKey,"
+    anchor_at = source.find(anchor)
+    if anchor_at < 0:
+        raise SystemExit("Credits.fm settings row not found for shortcut links")
+    group_at = source.rfind("SettingsGroup(", 0, anchor_at)
+    if group_at < 0:
+        raise SystemExit("Credits.fm SettingsGroup not found")
+    opening = source.find("{", group_at, anchor_at)
+    if opening < 0:
+        raise SystemExit("Credits.fm SettingsGroup content block not found")
+    closing = matching_kotlin_brace(source, opening)
+    links = r'''
+
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 20.dp, end = 20.dp, top = 6.dp, bottom = 2.dp),
+        ) {
+            Text(
+                text = "Get a free Credits.fm API key",
+                modifier = Modifier
+                    .clickable { creditsFmUriHandler.openUri("https://credits.fm/api") }
+                    .padding(vertical = 6.dp),
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontSize = 13.sp,
+                    textDecoration = TextDecoration.Underline,
+                ),
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Text(
+                text = "Manage Song Info & Credits",
+                modifier = Modifier
+                    .clickable(onClick = onOpenSongInfoCreditsSettings)
+                    .padding(vertical = 6.dp),
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontSize = 13.sp,
+                    textDecoration = TextDecoration.Underline,
+                ),
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }'''
+    return source[:closing + 1] + links + source[closing + 1:]
+
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo", type=Path, default=Path("."))
@@ -197,6 +304,13 @@ fun CreditsFmApiKeyAlert(
         "    onOpenLastfmLogin: () -> Unit,\n    onOpenCreditsFmKey: () -> Unit,\n    onOpenDiscord: () -> Unit,",
         "Credits.fm key editor callback",
     )
+    replace_once(
+        account_screen,
+        "    onOpenCreditsFmKey: () -> Unit,\n    onOpenDiscord: () -> Unit,",
+        "    onOpenCreditsFmKey: () -> Unit,\n    onOpenSongInfoCreditsSettings: () -> Unit,\n    onOpenDiscord: () -> Unit,",
+        "Song Info & Credits settings shortcut callback",
+    )
+
     account_text = account_screen.read_text(encoding="utf-8")
     account_text = account_text.replace(
         "    var showCreditsFmKeyDialog by remember { mutableStateOf(false) }\n",
@@ -245,6 +359,27 @@ fun CreditsFmApiKeyAlert(
         raise SystemExit("Could not find the end of " + marker)
 
     account_text = remove_kotlin_block(account_text, "    if (showCreditsFmKeyDialog) {")
+
+    package_line = "package com.music.bitchord.ui.screens\n"
+    for import_line in (
+        "import androidx.compose.foundation.clickable",
+        "import androidx.compose.ui.platform.LocalUriHandler",
+        "import androidx.compose.ui.text.style.TextDecoration",
+        "import androidx.compose.ui.unit.sp",
+    ):
+        if import_line not in account_text:
+            account_text = account_text.replace(package_line, package_line + import_line + "\n", 1)
+
+    function_open = "    modifier: Modifier = Modifier,\n) {"
+    if "val creditsFmUriHandler = LocalUriHandler.current" not in account_text:
+        if function_open not in account_text:
+            raise SystemExit("Account integration composable body marker not found")
+        account_text = account_text.replace(
+            function_open,
+            function_open + "\n    val creditsFmUriHandler = LocalUriHandler.current",
+            1,
+        )
+    account_text = add_credits_fm_shortcuts(account_text)
     account_screen.write_text(account_text, encoding="utf-8")
 
     # Root-level presentation mirrors the ListenBrainz/Last.fm alert lifecycle:
@@ -271,7 +406,7 @@ fun CreditsFmApiKeyAlert(
     replace_once(
         main_activity,
         "                                onOpenLastfmLogin = { showLastfmLogin = true },\n",
-        "                                onOpenLastfmLogin = { showLastfmLogin = true },\n                                onOpenCreditsFmKey = { showCreditsFmKeyAlert = true },\n",
+        "                                onOpenLastfmLogin = { showLastfmLogin = true },\n                                onOpenCreditsFmKey = { showCreditsFmKeyAlert = true },\n                                onOpenSongInfoCreditsSettings = {\n                                    navigator.pushAll(\n                                        AppRoute.Settings,\n                                        AppRoute.SettingsSection(com.music.bitchord.ui.screens.SettingsCategory.APPEARANCE),\n                                        AppRoute.SettingsChoice(com.music.bitchord.ui.screens.SettingsChoiceKind.SONG_INFO_CREDITS),\n                                    )\n                                },\n",
         "Credits.fm account page callback",
     )
     credits_alert_host = """        if (showCreditsFmKeyAlert) {
@@ -310,12 +445,13 @@ fun CreditsFmApiKeyAlert(
         'parameter("limit", 25)',
     )
     old_query = 'val query = "recording:' + chr(36) + '{luceneQuote(title)} AND artist:' + chr(36) + '{luceneQuote(artist)}"'
-    new_query = 'val searchableArtist = artist.replace(Regex("""\\s*[-–—]\\s*Topic$""", RegexOption.IGNORE_CASE), "").trim()\n                    val query = "recording:" + luceneQuote(title) + " AND artist:" + luceneQuote(searchableArtist)'
+    new_query = 'val query = "recording:" + luceneQuote(title)'
     if old_query in repository_text:
         repository_text = repository_text.replace(old_query, new_query, 1)
 
-    # MusicBrainz matching remains conservative on title, but normalizes the
-    # YouTube Music "Artist - Topic" suffix and tolerates artist-credit joins.
+    # Search by recording title to avoid dropping candidates when provider artist
+    # strings differ, as they often do with multi-writer / film-music credits.
+    # The local matcher below still requires a close title AND matching artist.
     matcher_start = "    fun bestRecordingMbid(root: JsonElement, title: String, artist: String): String? {"
     matcher_end = "    fun findFirstString(root: JsonElement, keys: Set<String>): String? {"
     matcher_a = repository_text.find(matcher_start)
