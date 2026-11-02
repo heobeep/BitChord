@@ -53,6 +53,17 @@ jobs:
         run: python3 scripts/build-song-credits/finalize.py --repo .
       - name: Normalize contributor names and improve credits
         run: python3 scripts/build-song-credits/fix_generated_sources.py --repo .
+      - name: Verify install-mode Gradle configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F 'applicationId = if (providers.gradleProperty("bitchord.credits.cleanSwitch").orNull == "true") "com.music.bitchord" else "com.music.bitchord.songcredits"' app/build.gradle.kts
+          grep -F 'signingConfig = signingConfigs.getByName("creditsStable")' app/build.gradle.kts
+          grep -F 'BitChord-Credits-Replace-' app/build.gradle.kts
+          grep -F 'BitChord-Credits-Keep-' app/build.gradle.kts
+          grep -F 'BitChord Credits · Replace' app/build.gradle.kts
+          echo "Both package IDs, app labels, updater prefixes and permanent signing config are present."
+
       - name: Run tests and build both install modes
         run: |
           chmod +x ./gradlew

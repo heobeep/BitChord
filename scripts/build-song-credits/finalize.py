@@ -662,10 +662,14 @@ fun CreditsFmApiKeyAlert(
         count=1,
     )
     if app_id_count == 0:
-        credits_block = credits_block.replace(
-            credits_marker + "{",
-            credits_marker + "{\n            " + app_id_value,
-            1,
+        flavor_open = credits_block.find("{")
+        if flavor_open < 0:
+            raise SystemExit("Credits product flavor opening brace not found")
+        credits_block = (
+            credits_block[:flavor_open + 1]
+            + "\\n            "
+            + app_id_value
+            + credits_block[flavor_open + 1:]
         )
     # Remove an old flavor suffix if the source patch used one; the explicit
     # applicationId above is the complete package ID for each install mode.
