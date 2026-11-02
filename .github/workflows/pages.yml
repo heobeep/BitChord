@@ -6,21 +6,53 @@ on:
     paths:
       - "site/**"
       - ".github/workflows/pages.yml"
+  pull_request:
+    branches: [song-credits-apk]
+    paths:
+      - "site/**"
+      - ".github/workflows/pages.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: github-pages
   cancel-in-progress: false
 
 jobs:
-  deploy:
-    name: Deploy interactive project website
+  validate:
+    name: Validate the website
     runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate site structure and download safety controls
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s site/index.html
+          test -s site/styles.css
+          test -s site/app.js
+          test -s site/assets/credits-cover.svg
+          grep -q 'id="downloadButton"' site/index.html
+          grep -q 'id="deviceSelect"' site/index.html
+          grep -q 'id="replaceMode"' site/index.html
+          grep -q 'INSTALL-COMPATIBILITY.txt' site/app.js
+          grep -q 'Compatibility check: MATCH' site/app.js
+          grep -q 'allReplaceAssets' site/app.js
+          echo "Website structure, cover artwork and fail-closed download controls are present."
+
+  deploy:
+    name: Deploy to GitHub Pages
+    if: github.event_name != 'pull_request'
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -30,17 +62,6 @@ jobs:
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
-
-      - name: Validate website files
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -s site/index.html
-          test -s site/styles.css
-          test -s site/app.js
-          grep -q 'id="downloadButton"' site/index.html
-          grep -q 'INSTALL-COMPATIBILITY.txt' site/app.js
-          echo "Static website files and download safety checks are present."
 
       - name: Upload website artifact
         uses: actions/upload-pages-artifact@v4
