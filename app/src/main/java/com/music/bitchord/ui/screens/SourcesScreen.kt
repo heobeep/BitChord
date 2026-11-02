@@ -801,6 +801,7 @@ private fun SourceRow(
                 SourceKind.ADDON -> SfIcons.Extension
                 SourceKind.CUSTOM_MODULE -> SfIcons.Extension
                 SourceKind.MODULE -> SfIcons.Extension
+                SourceKind.MORNYE -> SfIcons.Extension
                 SourceKind.JIOSAAVN -> SfIcons.GraphicEq // or some other icon
                 SourceKind.YOUTUBE -> SfIcons.PlayCircle
             },

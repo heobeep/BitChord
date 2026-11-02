@@ -84,7 +84,7 @@ class MornyeSource(
                 audio.file?.delete()
                 return null
             }
-            is StreamRequest.Capped -> if (format.kbps != null && format.kbps > request.maxKbps) {
+            is StreamRequest.Capped -> if (format.kbps?.let { it > request.maxKbps } == true) {
                 audio.file?.delete()
                 return null
             }
