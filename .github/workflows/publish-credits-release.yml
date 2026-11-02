@@ -12,8 +12,9 @@ permissions:
 
 jobs:
   publish:
-    name: Publish all verified Android install builds
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    name: Publish verified Android install builds
+    # Pull-request builds are for testing only. Never publish them.
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' }}
     runs-on: ubuntu-latest
     env:
       SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
@@ -23,11 +24,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ env.SOURCE_COMMIT_SHA }}
+
       - name: Verify this is the latest Credits build
         id: latest-build
-        if: github.event_name == 'workflow_run'
         shell: bash
         run: |
+          set -euo pipefail
           CURRENT_SHA="$(git ls-remote origin refs/heads/song-credits-apk | awk '{print $1}')"
           if [ "$SOURCE_COMMIT_SHA" != "$CURRENT_SHA" ]; then
             echo "current=false" >> "$GITHUB_OUTPUT"
@@ -36,15 +38,15 @@ jobs:
             echo "current=true" >> "$GITHUB_OUTPUT"
           fi
 
-
       - name: Read the app version and prepare release names
         if: steps.latest-build.outputs.current != 'false'
         id: release-meta
         shell: bash
         run: |
+          set -euo pipefail
           VERSION="$(grep -E '^extra\["bitchordVersionName"\] = ' build.gradle.kts | sed -E 's/.*"([^"]+)".*/\1/')"
           if [ -z "$VERSION" ]; then
-            echo "Could not read bitchordVersionName from build.gradle.kts."
+            echo "::error::Could not read bitchordVersionName from build.gradle.kts."
             exit 1
           fi
           TAG="credits-v${VERSION}"
@@ -76,25 +78,90 @@ jobs:
           run-id: ${{ env.SOURCE_RUN_ID }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Verify all install modes and prepare checksums
+      - name: Gate Replace APKs on a verified in-place update
         if: steps.latest-build.outputs.current != 'false' && steps.release-check.outputs.exists == 'false'
+        id: compatibility
         shell: bash
         run: |
           set -euo pipefail
-          mapfile -t apks < <(find release-assets -type f -name '*.apk' -print)
-          if [ "${#apks[@]}" -ne 8 ]; then
-            echo "Expected 8 APKs (4 architectures × 2 install modes); found ${#apks[@]}."
-            find release-assets -maxdepth 2 -type f -print
+          REPORT="release-assets/INSTALL-COMPATIBILITY.txt"
+          test -s "$REPORT"
+          STATUS_LINE="$(grep -m1 '^INSTALL COMPATIBILITY:' "$REPORT" || true)"
+          if [[ "$STATUS_LINE" == "INSTALL COMPATIBILITY: MATCH "* ]]; then
+            echo "replace_available=true" >> "$GITHUB_OUTPUT"
+            cat > release-assets/REPLACE-INSTALL-STATUS.txt <<'EOF'
+          Replace downloads are included.
+          The automatic check confirmed that the Replace APK uses the same signing certificate as the official upstream APK checked for this release and has a higher version number.
+          This result applies only to the official version named in INSTALL-COMPATIBILITY.txt. Other builds may differ.
+          EOF
+          else
+            echo "replace_available=false" >> "$GITHUB_OUTPUT"
+            # Never publish a build as a safe replacement when Android would
+            # reject an in-place update or the official app could not be checked.
+            rm -f release-assets/BitChord-Credits-Replace-*.apk
+            rm -f release-assets/BitChord-Credits-Replace-*.apk.sha256
+            cat > release-assets/REPLACE-INSTALL-STATUS.txt <<'EOF'
+          Replace downloads are withheld from this public release.
+          The automatic check did not confirm that the Replace APK can update the checked official BitChord app in place.
+          Keep the official app installed and choose a Keep Original APK instead. Uninstalling the official app may erase its private data.
+          EOF
+            echo "Replace APKs withheld because compatibility was not MATCH: $STATUS_LINE"
+          fi
+
+      - name: Verify the remaining APKs and prepare checksums
+        if: steps.latest-build.outputs.current != 'false' && steps.release-check.outputs.exists == 'false'
+        env:
+          REPLACE_AVAILABLE: ${{ steps.compatibility.outputs.replace_available }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t keep_apks < <(find release-assets -maxdepth 1 -type f -name 'BitChord-Credits-Keep-*.apk' -print)
+          mapfile -t replace_apks < <(find release-assets -maxdepth 1 -type f -name 'BitChord-Credits-Replace-*.apk' -print)
+          if [ "${#keep_apks[@]}" -ne 4 ]; then
+            echo "::error::Expected all 4 Keep Original builds; found ${#keep_apks[@]}."
             exit 1
           fi
+          if [ "$REPLACE_AVAILABLE" = "true" ] && [ "${#replace_apks[@]}" -ne 4 ]; then
+            echo "::error::Compatibility passed but all 4 Replace builds were not present."
+            exit 1
+          fi
+          if [ "$REPLACE_AVAILABLE" != "true" ] && [ "${#replace_apks[@]}" -ne 0 ]; then
+            echo "::error::Replace builds must be withheld unless compatibility is MATCH."
+            exit 1
+          fi
+          mapfile -t apks < <(find release-assets -maxdepth 1 -type f -name '*.apk' -print)
           for apk in "${apks[@]}"; do
+            test -s "$apk"
             sha256sum "$apk" > "$apk.sha256"
           done
           test -s release-assets/DOWNLOADS.md
           test -s release-assets/INSTALL-COMPATIBILITY.txt
+          test -s release-assets/REPLACE-INSTALL-STATUS.txt
+          {
+            echo "## BitChord Credits v${{ steps.release-meta.outputs.version }}"
+            echo
+            echo "### Keep Original (recommended)"
+            echo "Installs separately and leaves the official BitChord app untouched."
+            echo
+            if [ "$REPLACE_AVAILABLE" = "true" ]; then
+              echo "### Replace Original"
+              echo "The automated check confirmed an in-place update for the exact official release named in INSTALL-COMPATIBILITY.txt."
+            else
+              echo "### Replace Original"
+              echo "Replace downloads have been withheld because an in-place update was not confirmed. Keep the official app installed and use Keep Original."
+            fi
+            echo
+            echo "### Device builds"
+            echo "- Universal: easiest option when you do not know your device architecture."
+            echo "- arm64-v8a: most recent Android phones and tablets."
+            echo "- armeabi-v7a: older 32-bit ARM devices."
+            echo "- x86_64: Android emulators and x86_64 Chromebooks."
+            echo
+            echo "Every published APK has a matching SHA-256 checksum file. See DOWNLOADS.md and INSTALL-COMPATIBILITY.txt before installing."
+          } > release-assets/RELEASE-NOTES.md
           ls -lh release-assets/
 
-      - name: Create the GitHub release and attach the APK
+      - name: Create the GitHub release and attach the verified APKs
         if: steps.latest-build.outputs.current != 'false' && steps.release-check.outputs.exists == 'false'
         uses: softprops/action-gh-release@v2
         with:
@@ -110,23 +177,5 @@ jobs:
             release-assets/*.apk.sha256
             release-assets/DOWNLOADS.md
             release-assets/INSTALL-COMPATIBILITY.txt
-          body: |
-            ## BitChord Credits v${{ steps.release-meta.outputs.version }}
-
-            Choose an install mode first, then choose a device build.
-
-            ### Keep original BitChord (recommended)
-            Installs BitChord Credits separately and leaves the official BitChord app installed.
-
-            ### Replace original BitChord
-            Uses the original package ID. Read INSTALL-COMPATIBILITY.txt before installing:
-            - MATCH means the official release checked in CI has the same signing certificate and a lower versionCode.
-            - MISMATCH or UNVERIFIED means Android will not safely update the installed official app. Uninstall it first; this can erase private app data.
-
-            ### Device builds
-            - Universal: easiest choice if you do not know your device architecture.
-            - arm64-v8a: most recent Android phones and tablets.
-            - armeabi-v7a: older 32-bit ARM devices.
-            - x86_64: Android emulators and x86_64 Chromebooks.
-
-            All APKs include SHA-256 checksum files. See DOWNLOADS.md for the complete installation guide.
+            release-assets/REPLACE-INSTALL-STATUS.txt
+          body_path: release-assets/RELEASE-NOTES.md
