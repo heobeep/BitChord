@@ -4,7 +4,7 @@ on:
   workflow_run:
     workflows: ["Build BitChord Credits APK"]
     types: [completed]
-    branches: [song-credits-apk]
+    branches: [main]
 
 permissions:
   actions: read
@@ -30,7 +30,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          CURRENT_SHA="$(git ls-remote origin refs/heads/song-credits-apk | awk '{print $1}')"
+          CURRENT_SHA="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
           if [ "$SOURCE_COMMIT_SHA" != "$CURRENT_SHA" ]; then
             echo "current=false" >> "$GITHUB_OUTPUT"
             echo "Skipping stale build $SOURCE_COMMIT_SHA; branch head is $CURRENT_SHA."
