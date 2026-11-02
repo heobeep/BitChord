@@ -125,17 +125,12 @@
     const replaceNames = ["universal", "arm64-v8a", "armeabi-v7a", "x86_64"];
     const allReplaceAssets = replaceNames.every(device => !!findApk("replace", device));
     const report = state.assets.find(asset => asset.name === "INSTALL-COMPATIBILITY.txt");
-    if (!allReplaceAssets || !report) return false;
+    const releaseNote = state.release && typeof state.release.body === "string" ? state.release.body : "";
 
-    // Fail closed: never expose Replace if the report cannot be retrieved and read.
-    try {
-      const response = await fetch(report.browser_download_url, { cache: "no-store" });
-      if (!response.ok) return false;
-      const text = await response.text();
-      return /^INSTALL COMPATIBILITY: MATCH\s*-/m.test(text.trim());
-    } catch (_) {
-      return false;
-    }
+    // The publisher writes this marker only after validating the exact compatibility report.
+    // Also require all four APKs and the report itself. Anything missing means "not safe".
+    const publisherConfirmedMatch = /(?:^|\\n)\\s*\\*\\*Compatibility check:\\s*MATCH\\*\\*/i.test(releaseNote);
+    return allReplaceAssets && !!report && publisherConfirmedMatch;
   }
 
   async function loadRelease() {
