@@ -24,6 +24,9 @@
 
 > BitChord Credits is an independent community fork of [BitChord](https://github.com/kushagrasinghx/BitChord), built around one small idea: the song is more than the name on the screen. Discover the performers, writers, musicians and producers behind the recording.
 
+> [!CAUTION]
+> **Existing v1.10.8 release warning:** the currently published release still lists legacy Replace APK files. The verified compatibility check reports **MISMATCH** because the official BitChord and Credits builds have different signing certificates. **Do not install those Replace APKs over your original BitChord.** Use **Keep Original → Universal** instead. The pending release-pipeline update is designed to remove legacy Replace assets when the next validated release is published.
+
 ---
 
 ## 01 / Choose your pressing
