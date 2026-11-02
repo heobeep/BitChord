@@ -484,6 +484,9 @@ class MornyeNativeHost(
         if (!manifest.filePermission) throw SecurityException("Extension file permission denied")
     }
 
+    /** Resolves an extension-owned path for the native playback adapter. */
+    fun localFile(path: String): File = resolveFile(path)
+
     private fun resolveFile(raw: String): File {
         requireFilePermission()
         require(raw.isNotBlank() && !raw.contains('\u0000') && !raw.contains('\\')) {

@@ -36,6 +36,7 @@ class MornyeQuickJsRuntime private constructor(
 ) : AutoCloseable {
     private val callLock = Mutex()
     @Volatile private var closed = false
+    val isClosed: Boolean get() = closed
 
     suspend fun invoke(
         method: String,

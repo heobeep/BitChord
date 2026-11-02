@@ -18,7 +18,8 @@ import java.util.concurrent.TimeUnit
  * cannot leave a half-written extension on disk.
  */
 class MornyeExtensionStore(context: Context) {
-    private val root = File(context.applicationContext.filesDir, "mornye/extensions")
+    private val appContext = context.applicationContext
+    private val root = File(appContext.filesDir, "mornye/extensions")
 
     private val client = OkHttpClient.Builder()
         .connectTimeout(20, TimeUnit.SECONDS)
@@ -96,6 +97,51 @@ class MornyeExtensionStore(context: Context) {
             "Invalid extension ID"
         }
         return File(root, extensionId)
+    }
+
+    /** Separate writable storage for this extension; installed code stays read-only to the host. */
+    fun dataDirectory(extensionId: String): File {
+        require(extensionId.matches(Regex("^[a-z0-9][a-z0-9_-]{0,99}$"))) {
+            "Invalid extension ID"
+        }
+        return File(appContext.filesDir, "mornye/data/" + extensionId + "/files").apply {
+            mkdirs()
+        }.canonicalFile
+    }
+
+    /** Re-opens an already installed package without trusting caller-supplied paths. */
+    suspend fun openInstalled(extensionId: String): MornyePackageArchive = withContext(Dispatchers.IO) {
+        val directory = packageDirectory(extensionId).canonicalFile
+        val manifestFile = File(directory, "manifest.json")
+        val scriptFile = File(directory, "index.js")
+        if (!manifestFile.isFile || !scriptFile.isFile) {
+            throw MornyePackageException("Extension is not completely installed")
+        }
+        val manifestBytes = manifestFile.readBytes()
+        val scriptBytes = scriptFile.readBytes()
+        if (scriptBytes.isEmpty() || scriptBytes.size > MornyePackageReader.MAX_SCRIPT_BYTES) {
+            throw MornyePackageException("Installed extension script has an invalid size")
+        }
+        val manifest = MornyePackageReader.parseManifest(manifestBytes)
+        if (manifest.name != extensionId) {
+            throw MornyePackageException("Installed extension identity does not match its directory")
+        }
+        val files = LinkedHashMap<String, ByteArray>()
+        var total = 0
+        directory.walkTopDown().filter { it.isFile }.forEach { file ->
+            val relative = directory.toPath().relativize(file.toPath()).toString().replace(File.separatorChar, '/')
+            if (relative.isBlank() || relative.split('/').any { it == "." || it == ".." }) {
+                throw MornyePackageException("Installed extension contains an unsafe path")
+            }
+            total += file.length().coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+            if (total > MornyePackageReader.MAX_EXPANDED_BYTES) {
+                throw MornyePackageException("Installed extension exceeds the expanded size limit")
+            }
+            if (file.length() <= MornyePackageReader.MAX_SCRIPT_BYTES) {
+                files[relative] = file.readBytes()
+            }
+        }
+        MornyePackageArchive(manifest, scriptBytes.toString(Charsets.UTF_8), files)
     }
 
     private fun installArchive(archive: MornyePackageArchive) {
