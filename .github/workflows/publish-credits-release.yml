@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   publish:
-    name: Publish all verified Android install builds
+    name: Publish verified Android install builds
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     env:
@@ -23,11 +23,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ env.SOURCE_COMMIT_SHA }}
+
       - name: Verify this is the latest Credits build
         id: latest-build
-        if: github.event_name == 'workflow_run'
         shell: bash
         run: |
+          set -euo pipefail
           CURRENT_SHA="$(git ls-remote origin refs/heads/song-credits-apk | awk '{print $1}')"
           if [ "$SOURCE_COMMIT_SHA" != "$CURRENT_SHA" ]; then
             echo "current=false" >> "$GITHUB_OUTPUT"
@@ -36,25 +37,23 @@ jobs:
             echo "current=true" >> "$GITHUB_OUTPUT"
           fi
 
-
       - name: Read the app version and prepare release names
-        if: steps.latest-build.outputs.current != 'false'
+        if: steps.latest-build.outputs.current == 'true'
         id: release-meta
         shell: bash
         run: |
+          set -euo pipefail
           VERSION="$(grep -E '^extra\["bitchordVersionName"\] = ' build.gradle.kts | sed -E 's/.*"([^"]+)".*/\1/')"
           if [ -z "$VERSION" ]; then
-            echo "Could not read bitchordVersionName from build.gradle.kts."
+            echo "::error::Could not read bitchordVersionName from build.gradle.kts."
             exit 1
           fi
-          TAG="credits-v${VERSION}"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "tag=credits-v$VERSION" >> "$GITHUB_OUTPUT"
           echo "title=BitChord Credits v$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Preparing $TAG from $SOURCE_COMMIT_SHA"
 
-      - name: Check whether this version is already published
-        if: steps.latest-build.outputs.current != 'false'
+      - name: Check whether this version already exists
+        if: steps.latest-build.outputs.current == 'true'
         id: release-check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -62,13 +61,13 @@ jobs:
         run: |
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "$TAG already exists; leaving the published release untouched."
+            echo "$TAG already exists; its assets and notes will be reconciled with this validated build."
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Download the APK from the successful build run
-        if: steps.latest-build.outputs.current != 'false' && steps.release-check.outputs.exists == 'false'
+      - name: Download the APKs from the successful build
+        if: steps.latest-build.outputs.current == 'true'
         uses: actions/download-artifact@v4
         with:
           name: BitChord-Credits-all-installers
@@ -76,26 +75,85 @@ jobs:
           run-id: ${{ env.SOURCE_RUN_ID }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Verify all install modes and prepare checksums
-        if: steps.latest-build.outputs.current != 'false' && steps.release-check.outputs.exists == 'false'
+      - name: Verify the safe install matrix and prepare checksums
+        if: steps.latest-build.outputs.current == 'true'
         shell: bash
         run: |
           set -euo pipefail
-          mapfile -t apks < <(find release-assets -type f -name '*.apk' -print)
-          if [ "${#apks[@]}" -ne 8 ]; then
-            echo "Expected 8 APKs (4 architectures × 2 install modes); found ${#apks[@]}."
-            find release-assets -maxdepth 2 -type f -print
-            exit 1
-          fi
-          for apk in "${apks[@]}"; do
-            sha256sum "$apk" > "$apk.sha256"
-          done
           test -s release-assets/DOWNLOADS.md
           test -s release-assets/INSTALL-COMPATIBILITY.txt
+
+          mapfile -t keep_apks < <(find release-assets -maxdepth 1 -type f -name 'BitChord-Credits-Keep-*.apk' -print)
+          mapfile -t replace_apks < <(find release-assets -maxdepth 1 -type f -name 'BitChord-Credits-Replace-*.apk' -print)
+
+          if [ "${#keep_apks[@]}" -ne 4 ]; then
+            echo "::error::Expected four Keep Original APKs; found ${#keep_apks[@]}."
+            find release-assets -maxdepth 1 -type f -print
+            exit 1
+          fi
+
+          for suffix in '-universal.apk' '_arm64-v8a.apk' '_armeabi-v7a.apk' '_x86_64.apk'; do
+            matches="$(find release-assets -maxdepth 1 -type f -name "BitChord-Credits-Keep-*$suffix" | wc -l)"
+            if [ "$matches" -ne 1 ]; then
+              echo "::error::Expected exactly one Keep Original build ending in $suffix; found $matches."
+              exit 1
+            fi
+          done
+
+          if grep -Eq '^INSTALL COMPATIBILITY: MATCH -' release-assets/INSTALL-COMPATIBILITY.txt; then
+            if [ "${#replace_apks[@]}" -ne 4 ]; then
+              echo "::error::Compatibility says MATCH, but the four Replace APKs are not all present."
+              exit 1
+            fi
+            for suffix in '_universal.apk' '_arm64-v8a.apk' '_armeabi-v7a.apk' '_x86_64.apk'; do
+              matches="$(find release-assets -maxdepth 1 -type f -name "BitChord-Credits-Replace-*$suffix" | wc -l)"
+              if [ "$matches" -ne 1 ]; then
+                echo "::error::Expected exactly one Replace build ending in $suffix; found $matches."
+                exit 1
+              fi
+            done
+            echo "Replacement compatibility MATCH: publishing all four Replace builds."
+          else
+            if [ "${#replace_apks[@]}" -ne 0 ]; then
+              echo "::error::Compatibility is not MATCH, but Replace APKs are present. Refusing publication."
+              exit 1
+            fi
+            echo "Replacement compatibility is not MATCH: publishing Keep Original only."
+          fi
+
+          for file in release-assets/*; do
+            [ -f "$file" ] || continue
+            case "$file" in
+              *.sha256) continue ;;
+            esac
+            sha256sum "$file" > "$file.sha256"
+          done
           ls -lh release-assets/
 
-      - name: Create the GitHub release and attach the APK
-        if: steps.latest-build.outputs.current != 'false' && steps.release-check.outputs.exists == 'false'
+      - name: Remove unsafe Replace downloads from an existing release
+        if: steps.latest-build.outputs.current == 'true' && steps.release-check.outputs.exists == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.release-meta.outputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -Eq '^INSTALL COMPATIBILITY: MATCH -' release-assets/INSTALL-COMPATIBILITY.txt; then
+            echo "Compatibility is MATCH; the validated Replace downloads will be refreshed."
+            exit 0
+          fi
+
+          echo "Compatibility is not MATCH; deleting every pre-existing Replace APK and checksum from $TAG."
+          while IFS= read -r asset; do
+            case "$asset" in
+              BitChord-Credits-Replace-*.apk|BitChord-Credits-Replace-*.apk.sha256)
+                gh release delete-asset "$TAG" "$asset" --yes
+                ;;
+            esac
+          done < <(gh release view "$TAG" --json assets --jq '.assets[].name')
+
+      - name: Create the GitHub release and attach verified downloads
+        if: steps.latest-build.outputs.current == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.release-meta.outputs.tag }}
@@ -105,28 +163,24 @@ jobs:
           prerelease: false
           make_latest: true
           fail_on_unmatched_files: true
+          overwrite_files: true
           files: |
-            release-assets/*.apk
-            release-assets/*.apk.sha256
-            release-assets/DOWNLOADS.md
-            release-assets/INSTALL-COMPATIBILITY.txt
+            release-assets/*
           body: |
             ## BitChord Credits v${{ steps.release-meta.outputs.version }}
 
             Choose an install mode first, then choose a device build.
 
             ### Keep original BitChord (recommended)
-            Installs BitChord Credits separately and leaves the official BitChord app installed.
+            Installs BitChord Credits separately and leaves the official BitChord app installed. Universal is the easiest choice if you are unsure which download fits your phone.
 
             ### Replace original BitChord
-            Uses the original package ID. Read INSTALL-COMPATIBILITY.txt before installing:
-            - MATCH means the official release checked in CI has the same signing certificate and a lower versionCode.
-            - MISMATCH or UNVERIFIED means Android will not safely update the installed official app. Uninstall it first; this can erase private app data.
+            Replace APKs are included only when INSTALL-COMPATIBILITY.txt reports an exact MATCH for the official release checked during this build. If no Replace APKs are attached, do not uninstall the original app; use Keep Original instead.
 
             ### Device builds
-            - Universal: easiest choice if you do not know your device architecture.
+            - Universal: easiest choice if you do not know your device type.
             - arm64-v8a: most recent Android phones and tablets.
-            - armeabi-v7a: older 32-bit ARM devices.
+            - armeabi-v7a: older 32-bit Android phones.
             - x86_64: Android emulators and x86_64 Chromebooks.
 
-            All APKs include SHA-256 checksum files. See DOWNLOADS.md for the complete installation guide.
+            All published files include SHA-256 checksum files. See DOWNLOADS.md for the complete installation guide.
