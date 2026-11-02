@@ -62,7 +62,7 @@ The exact feature set can evolve with the upstream project and this fork.
 
 [![Get the latest BitChord Credits builds](https://img.shields.io/badge/Download-BitChord%20Credits-6e56cf?style=for-the-badge&logo=github)](https://github.com/heobeep/BitChord/releases/latest)
 
-Each release includes universal, ARM64, 32-bit ARM and x86_64 phone builds for both install modes. The replacement build is labelled separately and includes an automatically generated signing-compatibility report. Read that report before installing it over the official app.
+Every release includes **Keep Original** builds for Universal, ARM64, 32-bit ARM and x86_64 phones. **For future releases**, Replace builds will be published only when the automatic check confirms they can update the checked official app without uninstalling it. The existing v1.10.8 release predates that safeguard and still contains Replace APKs; its compatibility report says **MISMATCH**. Do not install those Replace APKs over the official BitChord app. Use **Keep Original → Universal** instead.
 
 ## 🎼 How song credits work
 
@@ -91,7 +91,7 @@ Use only API credentials you are entitled to use, and review the policies of the
 ## ❔ FAQ
 
 **Will this replace my existing BitChord installation?**  
-Not when you choose **Keep Original** — it installs separately and leaves official BitChord untouched. The separately labelled **Replace** build uses the original package ID. It can update an installed official version only when the release's INSTALL-COMPATIBILITY report says **MATCH**. If it says MISMATCH or UNVERIFIED, uninstalling the original is required first, and that can erase its private app data.
+Not when you choose **Keep Original** — it installs separately and leaves official BitChord untouched. The existing v1.10.8 release still contains Replace APKs even though its report says **MISMATCH**; do not install them over official BitChord. For future releases, Replace APKs will be published only when the compatibility report says **MATCH**. The current v1.10.8 report says **MISMATCH**, so do not use its Replace APK over the official app. Uninstalling the original first can erase its private app data.
 
 **Do I need a Credits.fm API key?**  
 The integration supports an optional key. Some metadata may be available through public sources, but results and coverage can vary.

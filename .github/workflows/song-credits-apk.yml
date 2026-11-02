@@ -1,0 +1,242 @@
+name: Build BitChord Credits APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - 'shared/**'
+      - 'sharedUi/**'
+      - 'native/**'
+      - 'wearos/**'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'gradle/**'
+      - 'gradle.properties'
+      - 'scripts/build-song-credits/**'
+      - '.github/workflows/song-credits-apk.yml'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Cancel stale builds from repeated edits to the same branch or pull request.
+concurrency:
+  group: credits-apk-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-credits-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - name: Install Android build components
+        run: |
+          yes | sdkmanager --licenses
+          sdkmanager --install --channel=3 \
+            "platforms;android-37.0" \
+            "ndk;27.0.12077973" \
+            "cmake;3.22.1"
+          if [ -d "$ANDROID_HOME/platforms/android-37.0" ] && [ ! -e "$ANDROID_HOME/platforms/android-37" ]; then
+            ln -s android-37.0 "$ANDROID_HOME/platforms/android-37"
+          fi
+      - name: Restore and verify the permanent Credits signing key
+        env:
+          DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$DEBUG_KEYSTORE_BASE64" ]; then
+            echo "::error::DEBUG_KEYSTORE_BASE64 is missing. Refusing to publish APKs signed with a temporary key."
+            exit 1
+          fi
+          mkdir -p .ci
+          printf '%s' "$DEBUG_KEYSTORE_BASE64" | base64 -d > .ci/credits-signing.keystore
+          keytool -list -keystore .ci/credits-signing.keystore -storepass android -alias androiddebugkey >/dev/null
+          echo "Permanent Credits keystore restored and alias verified."
+      - name: Apply the native Song Credits source patch
+        run: python3 scripts/build-song-credits/apply.py --repo .
+      - name: Apply Credits display cleanup and fork updater fixes
+        run: python3 scripts/build-song-credits/finalize.py --repo .
+      - name: Normalize contributor names and improve credits
+        run: python3 scripts/build-song-credits/fix_generated_sources.py --repo .
+      - name: Verify install-mode Gradle configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Generated Credits product flavor:"
+          sed -n '/create("credits")/,/^[[:space:]]*}/p' app/build.gradle.kts
+          echo "Generated signing configuration:"
+          sed -n '/signingConfigs {/,/^[[:space:]]*}/p' app/build.gradle.kts
+          for token in \
+            'applicationId = if' \
+            'com.music.bitchord' \
+            'com.music.bitchord.songcredits' \
+            'creditsStable' \
+            'BitChord-Credits-Replace-' \
+            'BitChord-Credits-Keep-' \
+            'BitChord Credits'; do
+            if ! grep -Fq "$token" app/build.gradle.kts; then
+              echo "::error::Generated Gradle configuration is missing: $token"
+              exit 1
+            fi
+          done
+          echo "Both package IDs, app labels, updater prefixes and permanent signing config are present."
+
+      - name: Run tests and build both install modes
+        run: |
+          chmod +x ./gradlew
+          ./gradlew --no-daemon \
+            :shared:jvmTest \
+            :app:testCreditsBenchmarkUnitTest \
+            :app:assembleCreditsBenchmark \
+            -Pbitchord.bundleWear=false
+          ./gradlew --no-daemon \
+            :app:assembleCreditsRelease \
+            -Pbitchord.bundleWear=false \
+            -Pbitchord.credits.cleanSwitch=true
+      - name: Package, identify and verify every APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(grep -E '^extra\["bitchordVersionName"\] = ' build.gradle.kts | sed -E 's/.*"([^"]+)".*/\1/')"
+          BUILD_TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
+          AAPT="$BUILD_TOOLS/aapt"
+          APKSIGNER="$BUILD_TOOLS/apksigner"
+          EXPECTED_CERT="cb95906a22d14fc5a2e7b8a54e0d175ef3ab55e7f5ea50bfdcb2bf8e90d7b7fb"
+          mkdir -p release-assets
+          collect_mode() {
+            local mode="$1" source_dir="$2" expected_package="$3"
+            local apk base abi package cert count=0
+            shopt -s nullglob
+            local apks=("$source_dir"/*.apk)
+            if [ "${#apks[@]}" -ne 4 ]; then
+              echo "::error::Expected universal + 3 ABI APKs for $mode; found ${#apks[@]} in $source_dir."
+              printf '%s\n' "${apks[@]}"
+              exit 1
+            fi
+            for apk in "${apks[@]}"; do
+              base="$(basename "$apk")"
+              case "$base" in
+                *arm64-v8a*) abi="arm64-v8a" ;;
+                *armeabi-v7a*) abi="armeabi-v7a" ;;
+                *x86_64*) abi="x86_64" ;;
+                *universal*) abi="universal" ;;
+                *) echo "::error::Cannot identify APK architecture from $base"; exit 1 ;;
+              esac
+              package="$("$AAPT" dump badging "$apk" | sed -n "s/^package: name='\([^']*\)'.*/\1/p")"
+              if [ "$package" != "$expected_package" ]; then
+                echo "::error::Wrong package for $mode/$abi: $package (expected $expected_package)"
+                exit 1
+              fi
+              cert="$("$APKSIGNER" verify --verbose --print-certs "$apk" | awk -F': ' '/certificate SHA-256 digest/ {gsub(/:/, "", $NF); print tolower($NF); exit}')"
+              if [ "$cert" != "$EXPECTED_CERT" ]; then
+                echo "::error::Wrong signing certificate for $mode/$abi: $cert"
+                exit 1
+              fi
+              if [ "$abi" = "universal" ]; then
+                for native_abi in arm64-v8a armeabi-v7a x86_64; do
+                  unzip -Z1 "$apk" | grep -q "^lib/$native_abi/" || {
+                    echo "::error::Universal APK is missing native libraries for $native_abi"
+                    exit 1
+                  }
+                done
+              else
+                unzip -Z1 "$apk" | grep -q "^lib/$abi/" || {
+                  echo "::error::$abi APK does not contain its expected native libraries"
+                  exit 1
+                }
+              fi
+              if [ "$abi" = "universal" ]; then
+                if [ "$mode" = "Keep" ]; then
+                  suffix="-universal"
+                else
+                  # A leading underscore keeps this out of the legacy generic
+                  # updater's universal match; Replace updates use ABI splits.
+                  suffix="_universal"
+                fi
+              else
+                suffix="_$abi"
+              fi
+              cp "$apk" "release-assets/BitChord-Credits-$mode-v${VERSION}${suffix}.apk"
+              count=$((count + 1))
+            done
+            if [ "$count" -ne 4 ]; then
+              echo "::error::Incomplete architecture set for $mode."
+              exit 1
+            fi
+          }
+          collect_mode "Keep" "app/build/outputs/apk/credits/benchmark" "com.music.bitchord.songcredits.benchmark"
+          collect_mode "Replace" "app/build/outputs/apk/credits/release" "com.music.bitchord"
+          echo "Verified both app IDs and all eight APK signatures."
+          ls -lh release-assets/*.apk
+      - name: Check whether replacement can update the official app in place
+        shell: bash
+        run: |
+          set -euo pipefail
+          BUILD_TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
+          AAPT="$BUILD_TOOLS/aapt"
+          APKSIGNER="$BUILD_TOOLS/apksigner"
+          EXPECTED_CERT="cb95906a22d14fc5a2e7b8a54e0d175ef3ab55e7f5ea50bfdcb2bf8e90d7b7fb"
+          VERSION="$(grep -E '^extra\["bitchordVersionName"\] = ' build.gradle.kts | sed -E 's/.*"([^"]+)".*/\1/')"
+          REPLACE_APK="release-assets/BitChord-Credits-Replace-v${VERSION}_arm64-v8a.apk"
+          REPLACE_CODE="$("$AAPT" dump badging "$REPLACE_APK" | sed -n "s/.*versionCode='\([^']*\)'.*/\1/p")"
+          UPSTREAM_TAG="unavailable"
+          UPSTREAM_PACKAGE=""
+          UPSTREAM_CODE=""
+          UPSTREAM_CERT=""
+          STATUS="UNVERIFIED"
+          ASSET_URL="$(curl -fsSL --retry 3 https://api.github.com/repos/kushagrasinghx/BitChord/releases/latest \
+            | jq -r '[.assets[] | select(.name | test("^BitChord-v.*_arm64-v8a\\.apk$"))][0].browser_download_url // empty' || true)"
+          if [ -n "$ASSET_URL" ] && curl -fL --retry 3 "$ASSET_URL" -o /tmp/upstream-bitchord.apk; then
+            UPSTREAM_TAG="$(basename "$(dirname "$ASSET_URL")")"
+            UPSTREAM_PACKAGE="$("$AAPT" dump badging /tmp/upstream-bitchord.apk | sed -n "s/^package: name='\([^']*\)'.*/\1/p")"
+            UPSTREAM_CODE="$("$AAPT" dump badging /tmp/upstream-bitchord.apk | sed -n "s/.*versionCode='\([^']*\)'.*/\1/p")"
+            UPSTREAM_CERT="$("$APKSIGNER" verify --verbose --print-certs /tmp/upstream-bitchord.apk | awk -F': ' '/certificate SHA-256 digest/ {gsub(/:/, "", $NF); print tolower($NF); exit}')"
+            if [ "$UPSTREAM_PACKAGE" = "com.music.bitchord" ] && [ "$UPSTREAM_CERT" = "$EXPECTED_CERT" ] && [ "$REPLACE_CODE" -gt "$UPSTREAM_CODE" ]; then
+              STATUS="MATCH - same package, same signing certificate, and newer versionCode. The replacement APK can update the checked official release in place."
+            elif [ "$UPSTREAM_PACKAGE" != "com.music.bitchord" ]; then
+              STATUS="MISMATCH - the downloaded upstream APK did not have the expected com.music.bitchord package. Treat replacement as requiring uninstall first."
+            elif [ "$UPSTREAM_CERT" != "$EXPECTED_CERT" ]; then
+              STATUS="MISMATCH - official BitChord and BitChord Credits use different signing certificates. Android will reject an in-place install. Uninstall original BitChord first; this can erase private app data."
+            else
+              STATUS="VERSION CHECK FAILED - the replacement APK is not newer than the checked upstream APK. Android may reject it as a downgrade."
+            fi
+          else
+            STATUS="UNVERIFIED - the official APK could not be downloaded for signature comparison. Do not assume an in-place update will work; uninstall original BitChord first if switching."
+          fi
+          {
+            echo "BitChord Credits v${VERSION}"
+            echo "Official upstream reference: $UPSTREAM_TAG"
+            echo "Upstream package: ${UPSTREAM_PACKAGE:-unknown}"
+            echo "Upstream versionCode: ${UPSTREAM_CODE:-unknown}"
+            echo "Upstream signer SHA-256: ${UPSTREAM_CERT:-unknown}"
+            echo "Credits signer SHA-256: $EXPECTED_CERT"
+            echo "Replacement APK versionCode: $REPLACE_CODE"
+            echo
+            echo "INSTALL COMPATIBILITY: $STATUS"
+            echo
+            echo "A MATCH applies only to the official release checked during this build. A different installed build may have a different signer or higher versionCode."
+          } > release-assets/INSTALL-COMPATIBILITY.txt
+          cat release-assets/INSTALL-COMPATIBILITY.txt
+      - name: Include the download guide
+        run: cp DOWNLOADS.md release-assets/DOWNLOADS.md
+      - name: Upload all installable APKs and install guidance
+        uses: actions/upload-artifact@v4
+        with:
+          name: BitChord-Credits-all-installers
+          path: release-assets/*
+          if-no-files-found: error
+          retention-days: 14

@@ -1,12 +1,14 @@
 # BitChord Credits build
 
-This branch builds two phone install modes from one source tree:
+The BitChord Credits phone builds are produced from the current `main` branch. A pull-request build checks changes before they are merged; a push to `main` that changes the app, shared code, native libraries, Wear OS app, build settings or Credits build scripts starts the release build.
 
-- **Keep original:** package com.music.bitchord.songcredits.benchmark, so it can coexist with the official com.music.bitchord app and with older Credits installs.
-- **Replace original:** package com.music.bitchord, built with the persistent Credits signing key. CI compares that certificate and versionCode with the latest official upstream APK. The generated compatibility report determines whether it can update in place or requires uninstalling the original first.
+Two phone install modes are prepared:
 
-Each mode is built as four installable APKs: universal, arm64-v8a, armeabi-v7a, and x86_64. Universal includes all three supported ABIs and is the recommended choice when a user does not know their device architecture.
+- **Keep original:** a separate BitChord Credits app that can coexist with the official BitChord installation.
+- **Replace original:** uses the official package ID. The workflow checks the actual official APK's signing certificate and version before it can be offered as an in-place update. If the result is not `MATCH`, the public release workflow withholds those Replace downloads.
 
-The build runs shared metadata tests and Credits app unit tests, checks package IDs and signing fingerprints for every APK, checks the official signing certificate, calculates compatibility, and uploads all APKs plus DOWNLOADS.md and INSTALL-COMPATIBILITY.txt.
+Each mode is built as four installable APKs: universal, arm64-v8a, armeabi-v7a, and x86_64. Universal contains all three supported ABIs and is the recommended choice when a user does not know their device architecture.
 
-Workflow: Actions → Build BitChord Credits APK. Successful runs are published automatically by publish-credits-release.yml, provided the run still corresponds to the current branch head.
+The build runs shared metadata tests and Credits app unit tests, checks package IDs and signing fingerprints for every APK, verifies native-library contents, checks the official signing certificate, and uploads the APKs plus installation guidance and the compatibility report.
+
+The publisher runs only for a successful push build from `main`, skips stale commits, and creates a permanent GitHub Release with SHA-256 checksum files. Pull-request builds are checks only and never publish downloads.

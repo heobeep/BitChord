@@ -169,6 +169,8 @@ import com.music.bitchord.data.settings.AudioQuality
 import com.music.bitchord.data.settings.DownloadQuality
 import com.music.bitchord.data.settings.ThemeMode
 import com.music.bitchord.data.settings.AppFont
+import com.music.bitchord.data.settings.SongInfoField
+import com.music.bitchord.data.settings.SongCreditField
 import com.music.bitchord.data.stats.Backup
 import com.music.bitchord.playback.AudioCache
 import com.music.bitchord.ui.player.fullBleedArtworkAvailable
@@ -906,6 +908,15 @@ fun SettingsScreen(
                     subtitle = appFont.description(),
                     value = appFont.localizedLabel(),
                     onClick = { onOpenChoice(SettingsChoiceKind.FONT) },
+                )
+            }
+            val songInfoCreditsTitle = stringResource(R.string.song_info_settings_title)
+            row(songInfoCreditsTitle, "song info", "youtube", "views", "likes", "credits", "contributors") {
+                SettingsRow(
+                    icon = Icons.Rounded.LibraryMusic,
+                    title = songInfoCreditsTitle,
+                    subtitle = stringResource(R.string.song_info_settings_subtitle),
+                    onClick = { onOpenChoice(SettingsChoiceKind.SONG_INFO_CREDITS) },
                 )
             }
             val reduceAnimationTitle = stringResource(R.string.reduce_animation)
@@ -2681,6 +2692,7 @@ enum class SettingsChoiceKind(@param:StringRes val title: Int) {
     AUTOMIX_PERFORMANCE(R.string.automix_performance),
     BIT_PERFECT(R.string.bit_perfect_output),
     FONT(R.string.font),
+    SONG_INFO_CREDITS(R.string.song_info_settings_title),
 }
 
 /** The main page's list of categories: a glyph and a name each, and a chevron into it. */
@@ -2721,6 +2733,86 @@ fun SettingsChoicePage(
     ) {
         SettingsPageTitle(stringResource(choice.title))
         when (choice) {
+            SettingsChoiceKind.SONG_INFO_CREDITS -> {
+                val showYoutubeInfo by AppSettings.showYoutubeSongInfo.collectAsStateWithLifecycle()
+                val showCredits by AppSettings.showRecordingCredits.collectAsStateWithLifecycle()
+                val selectedInfoFields by AppSettings.songInfoFields.collectAsStateWithLifecycle()
+                val selectedCreditFields by AppSettings.songCreditFields.collectAsStateWithLifecycle()
+
+                SettingsGroup(footer = stringResource(R.string.song_info_settings_youtube_footer), topSpacing = 0.dp) {
+                    SettingsRow(
+                        title = stringResource(R.string.song_info_settings_youtube_enabled),
+                        subtitle = stringResource(R.string.song_info_settings_youtube_subtitle),
+                        trailing = {
+                            IosSwitch(checked = showYoutubeInfo, onCheckedChange = AppSettings::setShowYoutubeSongInfo)
+                        },
+                        onClick = { AppSettings.setShowYoutubeSongInfo(!showYoutubeInfo) },
+                    )
+                    if (showYoutubeInfo) {
+                        Text(
+                            text = stringResource(R.string.song_info_settings_fields_section),
+                            modifier = Modifier.padding(start = ROW_INSET, top = 8.dp, bottom = 10.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        SongInfoField.entries.forEach { field ->
+                            val label = when (field) {
+                                SongInfoField.ALBUM -> R.string.song_info_album
+                                SongInfoField.RELEASE_DATE -> R.string.song_info_release_date
+                                SongInfoField.VIEWS -> R.string.song_info_views
+                                SongInfoField.LIKES -> R.string.song_info_likes
+                                SongInfoField.COMMENTS -> R.string.song_info_comments
+                            }
+                            SettingsSubRow(
+                                title = stringResource(label),
+                                checked = field in selectedInfoFields,
+                                onCheckedChange = { AppSettings.setSongInfoFieldEnabled(field, it) },
+                            )
+                        }
+                    }
+                }
+
+                SettingsGroup(footer = stringResource(R.string.song_info_settings_credits_footer), topSpacing = 16.dp) {
+                    SettingsRow(
+                        title = stringResource(R.string.song_info_settings_credits_enabled),
+                        subtitle = stringResource(R.string.song_info_settings_credits_subtitle),
+                        trailing = {
+                            IosSwitch(checked = showCredits, onCheckedChange = AppSettings::setShowRecordingCredits)
+                        },
+                        onClick = { AppSettings.setShowRecordingCredits(!showCredits) },
+                    )
+                    if (showCredits) {
+                        Text(
+                            text = stringResource(R.string.song_info_settings_credit_roles_section),
+                            modifier = Modifier.padding(start = ROW_INSET, top = 8.dp, bottom = 10.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        SongCreditField.entries.forEach { field ->
+                            val label = when (field) {
+                                SongCreditField.PERFORMERS -> R.string.song_info_settings_role_performers
+                                SongCreditField.MUSICIANS -> R.string.song_info_settings_role_musicians
+                                SongCreditField.SONGWRITERS -> R.string.song_info_settings_role_songwriters
+                                SongCreditField.COMPOSERS -> R.string.song_info_settings_role_composers
+                                SongCreditField.PRODUCERS -> R.string.song_info_settings_role_producers
+                                SongCreditField.ARRANGERS -> R.string.song_info_settings_role_arrangers
+                                SongCreditField.RECORDING_ENGINEERS -> R.string.song_info_settings_role_recording_engineers
+                                SongCreditField.MIXING_ENGINEERS -> R.string.song_info_settings_role_mixing_engineers
+                                SongCreditField.MASTERING_ENGINEERS -> R.string.song_info_settings_role_mastering_engineers
+                                SongCreditField.PUBLISHING -> R.string.song_info_settings_role_publishing
+                                SongCreditField.VOCALS -> R.string.song_info_settings_role_vocals
+                                SongCreditField.OTHER -> R.string.song_info_settings_role_other
+                            }
+                            SettingsSubRow(
+                                title = stringResource(label),
+                                checked = field in selectedCreditFields,
+                                onCheckedChange = { AppSettings.setSongCreditFieldEnabled(field, it) },
+                            )
+                        }
+                    }
+                }
+            }
+
             SettingsChoiceKind.AUDIO_QUALITY_WIFI, SettingsChoiceKind.AUDIO_QUALITY_CELLULAR -> {
                 val wifi = choice == SettingsChoiceKind.AUDIO_QUALITY_WIFI
                 val wifiQuality by AppSettings.audioQualityWifi.collectAsStateWithLifecycle()
