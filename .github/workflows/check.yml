@@ -42,23 +42,30 @@ jobs:
 
       - run: chmod +x gradlew
 
-      - name: Tests
-        run: ./gradlew testDevDebugUnitTest
+      # Keep this workflow scoped to the Android phone app. Root-level
+      # variant tasks also select TV targets in this multi-app repository.
+      - name: Phone unit tests
+        run: ./gradlew :app:testDevDebugUnitTest
 
-      - name: Build the dev APK
-        run: ./gradlew assembleDevDebug
+      - name: Compile phone instrumentation tests
+        run: ./gradlew :app:compileDevDebugAndroidTestKotlin
 
-      - name: Upload the dev APK
+      - name: Build the phone dev APK
+        run: ./gradlew :app:assembleDevDebug
+
+      - name: Upload the phone dev APK
         uses: actions/upload-artifact@v4
         with:
-          name: bitchord-dev-debug
-          path: app/build/outputs/apk/dev/debug/*.apk
+          name: bitchord-phone-dev-debug
+          path: app/build/outputs/apk/dev/debug/*universal*.apk
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Upload test reports
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: android-test-reports
+          name: android-phone-test-reports
           path: app/build/reports/tests/
 
   backend:

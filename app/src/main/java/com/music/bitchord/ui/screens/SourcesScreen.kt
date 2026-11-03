@@ -39,6 +39,8 @@ import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.PlayCircle
 import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import com.music.bitchord.ui.components.IosSwitch
@@ -78,6 +80,8 @@ import com.music.bitchord.data.sources.SourceConfig
 import com.music.bitchord.data.sources.SourceHealth
 import com.music.bitchord.data.sources.SourceKind
 import com.music.bitchord.data.sources.SourceRegistry
+import com.music.bitchord.data.sources.mornye.MornyePackageManager
+import java.io.File
 import com.music.bitchord.ui.components.AddonEditorAlert
 import dev.chrisbanes.haze.HazeState
 import kotlinx.coroutines.Dispatchers
@@ -124,6 +128,37 @@ fun SourcesScreen(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var mornyeInstallMessage by remember { mutableStateOf<String?>(null) }
+    var pendingMornyeUninstall by remember { mutableStateOf<SourceConfig?>(null) }
+    val mornyePackagePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            scope.launch {
+                val result = withContext(Dispatchers.IO) {
+                    runCatching {
+                        val temporary = File.createTempFile("mornye-import-", ".spotiflac-ext", context.cacheDir)
+                        try {
+                            val input = context.contentResolver.openInputStream(uri)
+                                ?: error("Could not read the selected package")
+                            input.use { source -> temporary.outputStream().use { target -> source.copyTo(target) } }
+                            MornyePackageManager(context).install(temporary)
+                        } finally {
+                            temporary.delete()
+                        }
+                    }
+                }
+                result.fold(
+                    onSuccess = { installed ->
+                        SourceRegistry.addMornyeExtension(installed)
+                        mornyeInstallMessage = "Installed ${installed.manifest.displayName}"
+                    },
+                    onFailure = { error ->
+                        mornyeInstallMessage = "Install failed: ${error.message ?: "Invalid package"}"
+                    },
+                )
+            }
+        }
+    }
     val configs by SourceRegistry.configs.collectAsStateWithLifecycle()
     val wifiQuality by AppSettings.audioQualityWifi.collectAsStateWithLifecycle()
     val cellularQuality by AppSettings.audioQualityCellular.collectAsStateWithLifecycle()
@@ -146,10 +181,10 @@ fun SourcesScreen(
     // was any good, and the only place a manifest that fails validation gets to
     // say why. Except an addon waiting on a lossless output: it is not to be
     // contacted at all until one is connected, and connecting one re-runs this.
-    val probeKey = configs.filter { it.kind.needsServer }
-        .joinToString { "${it.id}@${it.baseUrl}@${it.checkValidLossless}" } + "@${losslessOutput.capable}"
+    val probeKey = configs.filter { it.kind.needsServer || it.kind == SourceKind.MORNYE_EXTENSION }
+        .joinToString { "${it.id}@${it.baseUrl}@${it.extensionId}@${it.checkValidLossless}" } + "@${losslessOutput.capable}"
     LaunchedEffect(probeKey) {
-        configs.filter { it.kind.needsServer && it.isComplete && !it.awaitsLosslessOutput }.forEach { config ->
+        configs.filter { (it.kind.needsServer || it.kind == SourceKind.MORNYE_EXTENSION) && it.isComplete && !it.awaitsLosslessOutput }.forEach { config ->
             val source = SourceRegistry.instance(config.id) ?: return@forEach
             health[config.id] = withContext(Dispatchers.IO) {
                 runCatching { source.health() }
@@ -172,6 +207,32 @@ fun SourcesScreen(
                 }
             }
         }
+    }
+
+    pendingMornyeUninstall?.let { target ->
+        AlertDialog(
+            onDismissRequest = { pendingMornyeUninstall = null },
+            title = { Text("Uninstall ${target.displayName}?") },
+            text = { Text("The extension package and its local settings will be removed from this device.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    val removed = target.extensionId?.let { extensionId ->
+                        runCatching { MornyePackageManager(context).uninstall(extensionId) }.getOrDefault(false)
+                    } ?: false
+                    if (removed) {
+                        SourceRegistry.remove(target.id)
+                        pendingMornyeUninstall = null
+                        mornyeInstallMessage = "Extension uninstalled"
+                    } else {
+                        pendingMornyeUninstall = null
+                        mornyeInstallMessage = "Could not uninstall extension. Try again."
+                    }
+                }) { Text("Uninstall") }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingMornyeUninstall = null }) { Text("Cancel") }
+            },
+        )
     }
 
     // The ceiling in force *right now*, which is the only one this screen can
@@ -243,7 +304,11 @@ fun SourcesScreen(
                         // Anything the user configured is theirs to edit or
                         // delete. JioSaavn and YouTube have no address to
                         // change, so a tap on them would open an empty editor.
-                        onClick = if (config.kind.needsServer) ({ onEditSource(config) }) else null,
+                        onClick = when {
+                            config.kind.needsServer -> ({ onEditSource(config) })
+                            config.kind == SourceKind.MORNYE_EXTENSION -> ({ pendingMornyeUninstall = config })
+                            else -> null
+                        },
                         // YouTube gets no switch at all — see
                         // [SourceRegistry.setEnabled] for why one would be a lie.
                         onToggle = if (config.kind == SourceKind.YOUTUBE) {
@@ -288,6 +353,13 @@ fun SourcesScreen(
             RowDivider()
             AddSourceRow(
                 onClick = { onEditSource(SourceConfig(kind = SourceKind.ADDON)) },
+            )
+            RowDivider()
+            SettingsRow(
+                icon = SfIcons.Extension,
+                title = "Install Mornye extension",
+                subtitle = mornyeInstallMessage ?: "Import a .spotiflac-ext package",
+                onClick = { mornyePackagePicker.launch(arrayOf("*/*")) },
             )
         }
 
@@ -789,6 +861,7 @@ private fun SourceRow(
                 SourceKind.ADDON -> SfIcons.Extension
                 SourceKind.CUSTOM_MODULE -> SfIcons.Extension
                 SourceKind.MODULE -> SfIcons.Extension
+                SourceKind.MORNYE_EXTENSION -> SfIcons.Extension
                 SourceKind.JIOSAAVN -> SfIcons.GraphicEq // or some other icon
                 SourceKind.YOUTUBE -> SfIcons.PlayCircle
             },
@@ -925,7 +998,7 @@ private fun SourceConfig.statusLine(health: SourceHealth?): String = when {
     ).joinToString(" · ")
     health is SourceHealth.Rejected -> health.reason
     health is SourceHealth.Unreachable -> stringResource(R.string.source_unreachable, health.reason)
-    kind.needsServer -> stringResource(R.string.checking)
+    kind.needsServer || (kind == SourceKind.MORNYE_EXTENSION && health == null) -> stringResource(R.string.checking)
     else -> kind.labels.take(3).joinToString(" · ")
 }
 
