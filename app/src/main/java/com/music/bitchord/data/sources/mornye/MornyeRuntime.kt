@@ -30,12 +30,12 @@ class MornyeRuntime private constructor(
 
     suspend fun searchTracks(query: String, limit: Int = 20): JSONArray {
         require(limit in 1..100) { "limit must be between 1 and 100" }
-        val raw = invoke("searchTracks", "\${JSONObject.quote(query)},$limit")
+        val raw = invoke("searchTracks", "${JSONObject.quote(query)},$limit")
             ?: throw IllegalStateException("searchTracks returned no result")
         return try {
             JSONArray(raw)
         } catch (error: Exception) {
-            throw IllegalStateException("Mornye searchTracks must return an array: \${error.message}")
+            throw IllegalStateException("Mornye searchTracks must return an array: ${error.message}")
         }
     }
 
@@ -82,7 +82,7 @@ class MornyeRuntime private constructor(
             val raw = quickJs.evaluate<String>("__mornye_call_result")
             val parsed = runCatching { JSONObject(raw) }.getOrNull()
             if (parsed?.has("__mornye_error") == true) {
-                throw IllegalStateException("Mornye $name failed: \${parsed.optString("__mornye_error")}")
+                throw IllegalStateException("Mornye $name failed: ${parsed.optString("__mornye_error")}")
             }
             raw.takeUnless { it == "null" }
         }
