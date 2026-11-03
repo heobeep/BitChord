@@ -204,7 +204,7 @@ async function handle(req, res) {
       return json(res, 200, { tracks });
     }
 
-    const mediaMatch = url.pathname.match(/^\/media\\/([a-f0-9-]+)\.m4a$/i);
+    const mediaMatch = url.pathname.match(/^\/media\/([a-f0-9-]+)\.m4a$/i);
     if (mediaMatch) {
       const cached = mediaCache.get(mediaMatch[1]);
       if (!cached || cached.expiresAt < Date.now()) {
