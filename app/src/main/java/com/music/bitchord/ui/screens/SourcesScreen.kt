@@ -78,6 +78,8 @@ import com.music.bitchord.data.sources.SourceConfig
 import com.music.bitchord.data.sources.SourceHealth
 import com.music.bitchord.data.sources.SourceKind
 import com.music.bitchord.data.sources.SourceRegistry
+import com.music.bitchord.data.sources.mornye.MornyePackageManager
+import java.io.File
 import com.music.bitchord.ui.components.AddonEditorAlert
 import dev.chrisbanes.haze.HazeState
 import kotlinx.coroutines.Dispatchers
@@ -124,6 +126,36 @@ fun SourcesScreen(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var mornyeInstallMessage by remember { mutableStateOf<String?>(null) }
+    val mornyePackagePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            scope.launch {
+                val result = withContext(Dispatchers.IO) {
+                    runCatching {
+                        val temporary = File.createTempFile("mornye-import-", ".spotiflac-ext", context.cacheDir)
+                        try {
+                            val input = context.contentResolver.openInputStream(uri)
+                                ?: error("Could not read the selected package")
+                            input.use { source -> temporary.outputStream().use { target -> source.copyTo(target) } }
+                            MornyePackageManager(context).install(temporary)
+                        } finally {
+                            temporary.delete()
+                        }
+                    }
+                }
+                result.fold(
+                    onSuccess = { installed ->
+                        SourceRegistry.addMornyeExtension(installed)
+                        mornyeInstallMessage = "Installed ${installed.manifest.displayName}"
+                    },
+                    onFailure = { error ->
+                        mornyeInstallMessage = "Install failed: ${error.message ?: "Invalid package"}"
+                    },
+                )
+            }
+        }
+    }
     val configs by SourceRegistry.configs.collectAsStateWithLifecycle()
     val wifiQuality by AppSettings.audioQualityWifi.collectAsStateWithLifecycle()
     val cellularQuality by AppSettings.audioQualityCellular.collectAsStateWithLifecycle()
@@ -146,10 +178,10 @@ fun SourcesScreen(
     // was any good, and the only place a manifest that fails validation gets to
     // say why. Except an addon waiting on a lossless output: it is not to be
     // contacted at all until one is connected, and connecting one re-runs this.
-    val probeKey = configs.filter { it.kind.needsServer }
-        .joinToString { "${it.id}@${it.baseUrl}@${it.checkValidLossless}" } + "@${losslessOutput.capable}"
+    val probeKey = configs.filter { it.kind.needsServer || it.kind == SourceKind.MORNYE_EXTENSION }
+        .joinToString { "${it.id}@${it.baseUrl}@${it.extensionId}@${it.checkValidLossless}" } + "@${losslessOutput.capable}"
     LaunchedEffect(probeKey) {
-        configs.filter { it.kind.needsServer && it.isComplete && !it.awaitsLosslessOutput }.forEach { config ->
+        configs.filter { (it.kind.needsServer || it.kind == SourceKind.MORNYE_EXTENSION) && it.isComplete && !it.awaitsLosslessOutput }.forEach { config ->
             val source = SourceRegistry.instance(config.id) ?: return@forEach
             health[config.id] = withContext(Dispatchers.IO) {
                 runCatching { source.health() }
@@ -288,6 +320,13 @@ fun SourcesScreen(
             RowDivider()
             AddSourceRow(
                 onClick = { onEditSource(SourceConfig(kind = SourceKind.ADDON)) },
+            )
+            RowDivider()
+            SettingsRow(
+                icon = SfIcons.Extension,
+                title = "Install Mornye extension",
+                subtitle = "Import a .spotiflac-ext package",
+                onClick = { mornyePackagePicker.launch(arrayOf("*/*")) },
             )
         }
 
