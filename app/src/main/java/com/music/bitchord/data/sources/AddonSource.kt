@@ -263,6 +263,17 @@ class AddonSource(
             }
 
             val url = answer.playbackUrl() ?: run {
+                if (answer.hasUsableHybrid) {
+                    // LastWave's hybrid-v1 plan needs a local range-fetching
+                    // decryptor BitChord does not have yet. Do not play a
+                    // different URL from the same response as though it were
+                    // the intended lossless audio.
+                    TrackLog.w(
+                        TAG,
+                        "${config.displayName}: $trackId uses unsupported hybrid-v1 audio; passing to the next source",
+                    )
+                    return@withContext null
+                }
                 // The addon answered, and said it has nothing for this one. Its
                 // own words when it gave any: some report a backend that came
                 // up empty, others a credential the user has to go and set on
@@ -303,6 +314,10 @@ class AddonSource(
                 }
                 ?.let { return it }
         }
+
+        // The native LastWave resolver prefers hybrid-v1 over DASH/other
+        // fallback URLs whenever a usable encrypted range plan is present.
+        if (hasUsableHybrid) return null
 
         dataUrl?.takeIf { it.isNotBlank() }?.let { return it }
 
