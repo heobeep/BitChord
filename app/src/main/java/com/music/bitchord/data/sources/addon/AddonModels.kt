@@ -2,9 +2,12 @@ package com.music.bitchord.data.sources.addon
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.booleanOrNull
 
 /**
@@ -267,6 +270,8 @@ data class AddonStream(
     @SerialName("mimeType") val mimeType: String? = null,
     /** `false`, or the name of a DRM scheme. Anything but false is refused. */
     @SerialName("encrypted") val encrypted: JsonElement? = null,
+    /** LastWave hybrid-v1 carries encrypted CDN byte ranges and a content key. */
+    @SerialName("hybrid") val hybrid: JsonElement? = null,
     @SerialName("sampleRate") val sampleRate: Double? = null,
     @SerialName("bitDepth") val bitDepth: Double? = null,
     /** Bits per second, per the spec's neighbours; normalised in [kbps]. */
@@ -325,6 +330,20 @@ data class AddonStream(
             return element.content.isNotBlank() &&
                 !element.content.equals("false", ignoreCase = true) &&
                 !element.content.equals("none", ignoreCase = true)
+        }
+
+    /**
+     * Whether LastWave supplied enough hybrid-v1 information to use its
+     * encrypted byte-range route. BitChord does not implement that decrypting
+     * proxy yet, so it must not play the plan's unrelated fallback URL instead.
+     */
+    val hasUsableHybrid: Boolean
+        get() {
+            val plan = hybrid as? JsonObject ?: return false
+            val cdnUrl = (plan["cdnUrl"] as? JsonPrimitive)?.contentOrNull
+            val initRange = plan["initRange"] as? JsonObject
+            val ranges = plan["ranges"] as? JsonArray
+            return !cdnUrl.isNullOrBlank() && initRange != null && !ranges.isNullOrEmpty()
         }
 
     /**
