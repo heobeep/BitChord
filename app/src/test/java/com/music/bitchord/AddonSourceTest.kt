@@ -849,6 +849,25 @@ class AddonSourceTest {
         assertEquals("Song", songs.single().title)
     }
 
+    /** Inline DASH XML is a real LastWave stream form, not a malformed HTTP URL. */
+    @Test
+    fun `a LastWave inline MPD is handed to the player as DASH`() = runBlocking {
+        route("/manifest.json", manifest())
+        route(
+            "/stream/t1",
+            json(
+                """{"stream":{"manifestXml":"<MPD xmlns='urn:mpeg:dash:schema:mpd:2011'><Period/></MPD>","format":"dash","codec":"flac"}}""",
+            ),
+        )
+
+        val stream = AddonSource(config()).stream("t1", StreamRequest.Lossless)
+
+        assertNotNull(stream)
+        assertTrue(stream!!.url.startsWith("data:application/dash+xml;base64,"))
+        assertEquals("application/dash+xml", StreamContainer.manifestMimeOf(stream.url))
+        assertTrue(stream.format.isLossless)
+    }
+
     /** A 404 on stream is the addon saying it doesn't hold the track. A miss. */
     @Test
     fun `a stream 404 is a miss, not a crash`() = runBlocking {
