@@ -94,7 +94,7 @@ internal class MornyeExtensionSource(
         if (current != null && loadedVersion == installed.manifest.version) return@withLock current
         if (current != null) runCatching { current.close() }
 
-        val loaded = MornyeRuntime.load(installed)
+        val loaded = MornyeRuntime.load(installed, packages.applicationContext)
         try {
             loaded.initialize()
         } catch (error: Throwable) {
