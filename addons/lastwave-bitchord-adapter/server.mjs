@@ -257,7 +257,7 @@ async function handle(req, res) {
         const assembled = await assembleHybrid(rawStream.hybrid, { timeoutMs: REQUEST_TIMEOUT_MS });
         const mediaId = randomUUID();
         mediaCache.set(mediaId, { buffer: assembled, expiresAt: Date.now() + 15 * 60_000 });
-        const base = PUBLIC_BASE_URL.replace(/\\/+$/, "") ||
+        const base = PUBLIC_BASE_URL.replace(/\/+$/, "") ||
           ((req.headers["x-forwarded-proto"] || "https") + "://" + req.headers.host);
         return json(res, 200, {
           url: base + "/media/" + mediaId + ".m4a",
