@@ -1,5 +1,6 @@
 package com.music.bitchord.data.sources.mornye
 
+import android.content.Context
 import com.dokar.quickjs.QuickJs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
@@ -168,7 +169,7 @@ class MornyeRuntime private constructor(
                 put: function(url, body, headers) { return __mornyeRequest(url, 'PUT', body, headers); },
                 patch: function(url, body, headers) { return __mornyeRequest(url, 'PATCH', body, headers); },
                 delete: function(url, headers) { return __mornyeRequest(url, 'DELETE', null, headers); },
-                clearCookies: function() {}
+                clearCookies: function() { __mornye_http.clearCookies(); }
             };
             var fetch = function(url, options) {
                 var response = __mornyeRequest(
@@ -182,9 +183,48 @@ class MornyeRuntime private constructor(
                     json: function() { return JSON.parse(response.body); }
                 };
             };
+            // Signed-session calls are performed by the native host so session
+            // secrets never enter extension JavaScript or ordinary storage.
+            var session = {
+                enabled: typeof __mornye_session !== 'undefined' &&
+                    __mornye_session.enabled() === 'true',
+                status: function() {
+                    if (typeof __mornye_session === 'undefined') {
+                        return { enabled: false, authenticated: false };
+                    }
+                    return JSON.parse(__mornye_session.call('status', '[]'));
+                },
+                clear: function() {
+                    if (typeof __mornye_session === 'undefined') {
+                        return { success: false, error: 'signed sessions are not configured' };
+                    }
+                    return JSON.parse(__mornye_session.call('clear', '[]'));
+                },
+                completeGrant: function(grant) {
+                    if (typeof __mornye_session === 'undefined') {
+                        return { success: false, error: 'signed sessions are not configured' };
+                    }
+                    return JSON.parse(__mornye_session.call(
+                        'completeGrant', JSON.stringify([String(grant || '')])
+                    ));
+                },
+                signedFetch: function(method, path, body, headers) {
+                    if (typeof __mornye_session === 'undefined') {
+                        return { ok: false, error: 'signed sessions are not configured' };
+                    }
+                    var payload = body == null ? null :
+                        (typeof body === 'string' ? body : JSON.stringify(body));
+                    return JSON.parse(__mornye_session.call('signedFetch', JSON.stringify([
+                        String(method || 'GET'), String(path || ''), payload, headers || {}
+                    ])));
+                }
+            };
         """.trimIndent()
 
-        suspend fun load(extension: MornyePackageManager.InstalledExtension): MornyeRuntime =
+        suspend fun load(
+            extension: MornyePackageManager.InstalledExtension,
+            context: Context? = null,
+        ): MornyeRuntime =
             load(
                 extensionId = extension.manifest.name,
                 extensionName = extension.manifest.displayName,
@@ -194,6 +234,8 @@ class MornyeRuntime private constructor(
                 storagePermission = extension.manifest.storagePermission,
                 fileDirectory = extension.dataDirectory,
                 filePermission = extension.manifest.filePermission,
+                context = context,
+                manifest = extension.manifest.raw,
             )
 
         suspend fun load(
@@ -205,6 +247,8 @@ class MornyeRuntime private constructor(
             storagePermission: Boolean = false,
             fileDirectory: java.io.File? = null,
             filePermission: Boolean = false,
+            context: Context? = null,
+            manifest: JSONObject? = null,
         ): MornyeRuntime = withContext(Dispatchers.Default) {
             require(extensionId.isNotBlank()) { "extensionId must not be blank" }
             require(extensionName.isNotBlank()) { "extensionName must not be blank" }
@@ -213,7 +257,11 @@ class MornyeRuntime private constructor(
             val engine = QuickJs.create(Dispatchers.Default)
             engine.maxStackSize = 512 * 1024L
             try {
-                MornyeHttpHost(allowedDomains).install(engine)
+                val cookieJar = context?.let { MornyeCookieJar(it, extensionId) }
+                MornyeHttpHost(allowedDomains, cookieJar).install(engine)
+                if (context != null && manifest != null) {
+                    MornyeSessionHost(context, extensionId, manifest, allowedDomains).install(engine)
+                }
                 MornyeStorageHost(storageFile ?: java.io.File("mornye-storage-disabled"), storagePermission).install(engine)
                 MornyeFileHost(fileDirectory ?: java.io.File("mornye-files-disabled"), filePermission).install(engine)
                 engine.evaluate<String>(BOOTSTRAP + "\n" + javascript + "\n'loaded'")
