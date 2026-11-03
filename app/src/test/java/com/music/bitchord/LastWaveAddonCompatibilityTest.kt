@@ -45,4 +45,25 @@ class LastWaveAddonCompatibilityTest {
 
         assertEquals("https://cdn.example/primary", stream.playableUrl)
     }
+
+    @Test
+    fun `known LastWave decoy URLs are identified and rejected`() {
+        val prankUrl = json.decodeFromString<AddonStream>(
+            """{"url":"https://pranks-cdn.example/track.mp3"}""",
+        )
+        val honeypotUrl = json.decodeFromString<AddonStream>(
+            """{"directUrl":"https://cdn.example/definatelynagato/track.mp3"}""",
+        )
+        val decoyManifest = json.decodeFromString<AddonStream>(
+            """{"manifestXml":"<MPD><BaseURL>https://pranks-cdn.example/</BaseURL></MPD>"}""",
+        )
+        val clean = json.decodeFromString<AddonStream>(
+            """{"url":"https://cdn.example/real.flac"}""",
+        )
+
+        assertEquals(true, prankUrl.isKnownLastWaveDecoy)
+        assertEquals(true, honeypotUrl.isKnownLastWaveDecoy)
+        assertEquals(true, decoyManifest.isKnownLastWaveDecoy)
+        assertEquals(false, clean.isKnownLastWaveDecoy)
+    }
 }
