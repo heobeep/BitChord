@@ -19,8 +19,9 @@ import com.music.bitchord.data.DebugLog as Log
  * are unreadable either way, so it is deleted and recreated, and whatever the
  * plain fallback collected meanwhile is moved back in.
  *
- * A Keystore that can't be used at all, which a handful of OEM builds ship,
- * still degrades to the plain file rather than failing launch.
+ * General-purpose [open] keeps a plaintext fallback for non-secret app state.
+ * Callers handling credentials, session tokens, or cookies must use [openRequired],
+ * which fails closed when the device Keystore is unavailable.
  */
 internal object EncryptedPrefs {
 
