@@ -1,6 +1,7 @@
 package com.music.bitchord.data.sources.addon
 
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import java.util.Base64
 
 /**
  * Small compatibility rules shared with LastWave's public addon client.
@@ -42,6 +43,25 @@ internal object LastWaveAddonCompatibility {
         return if (atmosWanted && !stereoOnly) "auto" else "none"
     }
 
+    /**
+     * LastWave also treats the URL itself as evidence of a spatial rendition.
+     * DASH data URLs need their manifest codec inspected, since the marker is
+     * inside the base64 XML rather than visible in the URI.
+     */
+    fun isAtmosStreamUrl(url: String): Boolean {
+        if (url.startsWith("data:application/dash+xml", ignoreCase = true)) {
+            val encoded = url.substringAfter("base64,", "").trim()
+            if (encoded.isEmpty()) return false
+            val xml = runCatching {
+                String(Base64.getDecoder().decode(encoded), Charsets.UTF_8)
+            }.getOrNull() ?: return false
+            return ATMOS_CODEC_HINT.containsMatchIn(xml)
+        }
+        val lower = url.lowercase()
+        return lower.contains("atmos") || lower.contains("eac3") || lower.contains("ec-3")
+    }
+
+    private val ATMOS_CODEC_HINT = Regex("""(?:eac3|ec-3|ac-3)""", RegexOption.IGNORE_CASE)
     private const val HOST = "lastwaveaddons.clashprojects.qd.je"
     private val DECOY_MARKERS = listOf("pranks-cdn", "definatelynagato")
 }
