@@ -299,10 +299,10 @@ class AddonSource(
         }
 
     /**
-     * LastWave can return the playable item under several URL fields, or as
-     * inline DASH XML. Prefer an available progressive FLAC first, then the
-     * manifest/data URL, then the first other direct URL — the same safe order
-     * used by LastWave's native resolver.
+     * LastWave can return the playable item under several URL fields, inline
+     * DASH XML, or an encrypted hybrid-v1 plan. A direct FLAC wins first; a
+     * usable hybrid-only response is declined until BitChord has its decryptor;
+     * otherwise the manifest/data URL or first direct URL is used.
      */
     private fun AddonStream.playbackUrl(): String? {
         val direct = directUrls
