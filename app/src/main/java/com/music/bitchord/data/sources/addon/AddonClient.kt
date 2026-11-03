@@ -284,7 +284,19 @@ class AddonClient(rawBaseUrl: String) {
      * which an addon that bothered to order them makes its recommended tier.
      */
     private fun matchTier(tier: String, options: List<String>): String? {
-        if (options.isEmpty()) return null
+        if (options.isEmpty()) {
+            // LastWave's host uses lower-case wire tiers; sending BitChord's
+            // internal enum ("LOSSLESS") can select a backend default instead.
+            if (LastWaveAddonCompatibility.isHostedAddon(baseUrl)) {
+                return when (tier.uppercase()) {
+                    TIER_LOSSLESS -> "lossless"
+                    TIER_HIGH -> "high"
+                    TIER_LOW -> "low"
+                    else -> tier
+                }
+            }
+            return null
+        }
         options.firstOrNull { it.equals(tier, ignoreCase = true) }?.let { return it }
         val wanted = when (tier.uppercase()) {
             TIER_LOSSLESS -> LOSSLESS_WORDS
