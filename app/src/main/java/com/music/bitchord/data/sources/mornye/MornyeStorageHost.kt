@@ -70,7 +70,7 @@ internal class MornyeStorageHost(
     private fun writeStore(json: JSONObject) {
         val parent = storageFile.parentFile ?: throw IOException("Invalid extension storage path")
         if (!parent.exists() && !parent.mkdirs()) throw IOException("Cannot create extension storage")
-        val temp = File(parent, ".storage-\${System.nanoTime()}.tmp")
+        val temp = File(parent, ".storage-${System.nanoTime()}.tmp")
         try {
             temp.writeText(json.toString(), Charsets.UTF_8)
             try {
