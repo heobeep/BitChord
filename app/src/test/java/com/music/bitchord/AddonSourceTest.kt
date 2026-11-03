@@ -8,6 +8,7 @@ import com.music.bitchord.data.sources.SourceHealth
 import com.music.bitchord.data.sources.SourceKind
 import com.music.bitchord.data.sources.StreamRequest
 import com.music.bitchord.data.sources.addon.AddonClient
+import com.music.bitchord.data.sources.addon.LastWaveAddonCompatibility
 import com.music.bitchord.playback.StreamContainer
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.Dispatcher
@@ -65,6 +66,22 @@ class AddonSourceTest {
         server.shutdown()
         DeviceCodecs.forced = null
         AppSettings.dolbyAtmos.value = true
+    }
+
+    @Test
+    fun `LastWave gets an explicit Atmos value for enabled disabled and stereo requests`() {
+        val url = "https://lastwaveaddons.clashprojects.qd.je/personal-token"
+
+        assertEquals("auto", LastWaveAddonCompatibility.atmosParameter(url, atmosWanted = true, stereoOnly = false))
+        assertEquals("none", LastWaveAddonCompatibility.atmosParameter(url, atmosWanted = false, stereoOnly = false))
+        assertEquals("none", LastWaveAddonCompatibility.atmosParameter(url, atmosWanted = true, stereoOnly = true))
+        assertNull(
+            LastWaveAddonCompatibility.atmosParameter(
+                "https://addon.example.com/user",
+                atmosWanted = false,
+                stereoOnly = false,
+            ),
+        )
     }
 
     // ── URL handling ──────────────────────────────────────────────────────
