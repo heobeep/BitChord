@@ -12,6 +12,8 @@ import com.music.bitchord.data.sources.addon.AddonClient
 import com.music.bitchord.data.sources.addon.AddonException
 import com.music.bitchord.data.sources.addon.DetectedFormat
 import com.music.bitchord.data.sources.addon.SourceFormats
+import com.music.bitchord.data.sources.mornye.MornyeExtensionSource
+import com.music.bitchord.data.sources.mornye.MornyePackageManager
 import com.music.bitchord.data.settings.AudioQuality
 import com.music.bitchord.playback.audio.LosslessOutput
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -36,6 +38,8 @@ data class SourceConfig(
     /** What the user called it. Blank falls back to the server's host, or the kind's own label. */
     val label: String = "",
     val baseUrl: String = "",
+    /** Installed package id for a local Mornye extension source. */
+    val extensionId: String? = null,
     /** JioSaavn is opt-in because catalogue matches can select the wrong recording. */
     val enabled: Boolean = kind != SourceKind.JIOSAAVN,
     /**
@@ -70,7 +74,10 @@ data class SourceConfig(
 
     /** Whether this has enough filled in to be worth contacting at all. */
     val isComplete: Boolean
-        get() = !kind.needsServer || baseUrl.isNotBlank()
+        get() = when (kind) {
+            SourceKind.MORNYE_EXTENSION -> !extensionId.isNullOrBlank()
+            else -> !kind.needsServer || baseUrl.isNotBlank()
+        }
 }
 
 /**
@@ -89,6 +96,7 @@ object SourceRegistry {
     private const val TAG = "BitChord"
 
     private lateinit var prefs: SharedPreferences
+    private lateinit var appContext: Context
 
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
 
@@ -105,6 +113,7 @@ object SourceRegistry {
     private var instances: Map<String, MusicSource> = emptyMap()
 
     fun init(context: Context) {
+        appContext = context.applicationContext
         // Same repair and degradation as AuthStore; see EncryptedPrefs.
         prefs = EncryptedPrefs.open(context, "bitchord_sources", "bitchord_sources_plain")
 
@@ -310,6 +319,28 @@ object SourceRegistry {
 
     // ── Editing ─────────────────────────────────────────────────────────
 
+    /** Adds an installed local extension as a normal searchable/playable source. */
+    fun addMornyeExtension(extension: com.music.bitchord.data.sources.mornye.MornyePackageManager.InstalledExtension): SourceConfig {
+        val existing = configs.value.firstOrNull {
+            it.kind == SourceKind.MORNYE_EXTENSION && it.extensionId == extension.manifest.name
+        }
+        if (existing != null) {
+            if (existing.label != extension.manifest.displayName) {
+                val renamed = existing.copy(label = extension.manifest.displayName)
+                update(renamed)
+                return renamed
+            }
+            return existing
+        }
+        val config = SourceConfig(
+            kind = SourceKind.MORNYE_EXTENSION,
+            label = extension.manifest.displayName,
+            extensionId = extension.manifest.name,
+        )
+        add(config)
+        return config
+    }
+
     fun add(config: SourceConfig) = publish(configs.value + config.tidied())
 
     fun update(config: SourceConfig) =
@@ -397,9 +428,12 @@ object SourceRegistry {
         // anything still references the source. Serving one of those afterwards
         // would be answering a question about the old address with the new one
         // selected.
-        previous.values.filterNot { it in instances.values }
-            .filterIsInstance<AddonSource>()
-            .forEach { it.release() }
+        previous.values.filterNot { it in instances.values }.forEach { source ->
+            when (source) {
+                is AddonSource -> source.release()
+                is MornyeExtensionSource -> source.release()
+            }
+        }
         if (persist && ::prefs.isInitialized) {
             prefs.edit()
                 .putString(KEY_SOURCES, json.encodeToString(ListSerializer(SourceConfig.serializer()), next))
@@ -501,6 +535,7 @@ object SourceRegistry {
         // Same protocol, same implementation — the kinds differ only in rank.
         SourceKind.CUSTOM_MODULE -> ModuleSource(config)
         SourceKind.MODULE -> ModuleSource(config)
+        SourceKind.MORNYE_EXTENSION -> MornyeExtensionSource(config, MornyePackageManager(appContext))
         SourceKind.JIOSAAVN -> JioSaavnSource(config)
         SourceKind.YOUTUBE -> YouTubeSource(config)
     }

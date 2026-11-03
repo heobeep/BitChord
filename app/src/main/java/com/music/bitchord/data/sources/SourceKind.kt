@@ -127,6 +127,16 @@ enum class SourceKind(
         rank = 1,
     ),
 
+    /** A package installed locally from a Mornye .spotiflac-ext archive. */
+    MORNYE_EXTENSION(
+        label = "Mornye extension",
+        detail = "A locally installed JavaScript music provider with manifest-scoped permissions.",
+        labels = listOf("Extensions", "Plugin"),
+        needsServer = false,
+        canServeLossless = true,
+        rank = 0,
+    ),
+
     JIOSAAVN(
         label = "JioSaavn",
         detail = "Optional JioSaavn streams up to 320kbps AAC/MP4. Catalogue matching can select the wrong song.",

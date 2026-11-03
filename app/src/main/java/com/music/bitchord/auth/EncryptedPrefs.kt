@@ -19,8 +19,9 @@ import com.music.bitchord.data.DebugLog as Log
  * are unreadable either way, so it is deleted and recreated, and whatever the
  * plain fallback collected meanwhile is moved back in.
  *
- * A Keystore that can't be used at all, which a handful of OEM builds ship,
- * still degrades to the plain file rather than failing launch.
+ * General-purpose [open] keeps a plaintext fallback for non-secret app state.
+ * Callers handling credentials, session tokens, or cookies must use [openRequired],
+ * which fails closed when the device Keystore is unavailable.
  */
 internal object EncryptedPrefs {
 
@@ -31,6 +32,13 @@ internal object EncryptedPrefs {
 
     /** One store per file per process; every failed open was a Keystore round trip. */
     private val opened = HashMap<String, SharedPreferences>()
+
+    /** A fail-closed encrypted store for credentials and other secrets. */
+    private val openedRequired = HashMap<String, SharedPreferences>()
+
+    @Synchronized
+    fun openRequired(context: Context, name: String, plainName: String): SharedPreferences =
+        openedRequired.getOrPut(name) { resolveRequired(context.applicationContext, name, plainName) }
 
     @Synchronized
     fun open(context: Context, name: String, plainName: String): SharedPreferences =
@@ -59,6 +67,59 @@ internal object EncryptedPrefs {
         return encrypted
     }
 
+    private fun resolveRequired(context: Context, name: String, plainName: String): SharedPreferences {
+        val encrypted = try {
+            create(context, name)
+        } catch (e: Throwable) {
+            val staleKeyset = isUnverifiable(e) &&
+                context.getSharedPreferences(name, Context.MODE_PRIVATE).contains(KEYSET_ENTRY)
+            if (!staleKeyset) {
+                // A previous version may have written secrets to the fallback file.
+                context.deleteSharedPreferences(plainName)
+                throw IllegalStateException("Encrypted storage is required for $name but the device Keystore is unavailable", e)
+            }
+            context.deleteSharedPreferences(name)
+            try {
+                create(context, name)
+            } catch (retry: Throwable) {
+                context.deleteSharedPreferences(plainName)
+                throw IllegalStateException("Encrypted storage for $name could not be recreated", retry)
+            }
+        }
+        try {
+            moveInRequired(context, plainName, encrypted, name)
+        } catch (migrationError: Throwable) {
+            // Never leave old credentials or cookies in an unencrypted file.
+            context.deleteSharedPreferences(plainName)
+            throw migrationError
+        }
+        return encrypted
+    }
+
+    /** Never returns a plaintext fallback; a failed migration stops secret access. */
+    private fun moveInRequired(context: Context, plainName: String, encrypted: SharedPreferences, name: String) {
+        val entries = context.getSharedPreferences(plainName, Context.MODE_PRIVATE).all
+        if (entries.isEmpty()) return
+        val edit = encrypted.edit()
+        for ((key, value) in entries) {
+            when (value) {
+                is String -> edit.putString(key, value)
+                is Boolean -> edit.putBoolean(key, value)
+                is Int -> edit.putInt(key, value)
+                is Long -> edit.putLong(key, value)
+                is Float -> edit.putFloat(key, value)
+                is Set<*> -> edit.putStringSet(key, value.filterIsInstance<String>().toSet())
+            }
+        }
+        if (!edit.commit()) throw IllegalStateException("Could not encrypt existing values for $name")
+        val stored = encrypted.all
+        val unmatched = entries.keys.filter { stored[it] != entries[it] }
+        if (unmatched.isNotEmpty()) {
+            throw IllegalStateException("Could not verify encrypted values for $name")
+        }
+        context.deleteSharedPreferences(plainName)
+        Log.d(TAG, "moved ${entries.size} entries from $plainName into encrypted store $name")
+    }
     private fun create(context: Context, name: String): SharedPreferences =
         EncryptedSharedPreferences.create(
             context,

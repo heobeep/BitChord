@@ -751,6 +751,22 @@
         <meta-data
             android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME"
             android:value="com.music.bitchord.playback.cast.CastOptionsProvider" />
+        <!-- Receives the one-time signed-session grant after browser verification. -->
+        <activity
+            android:name=".MornyeAuthCallbackActivity"
+            android:exported="true"
+            android:noHistory="true"
+            android:excludeFromRecents="true"
+            android:theme="@style/Theme.BitChord">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="mornye"
+                    android:host="session-grant" />
+            </intent-filter>
+        </activity>
     </application>
 
 </manifest>

@@ -42,24 +42,50 @@ jobs:
 
       - run: chmod +x gradlew
 
-      - name: Tests
-        run: ./gradlew testDevDebugUnitTest
+      # Run only the Android phone module; root variant tasks also select TV.
+      - name: Phone unit tests
+        run: ./gradlew :app:testDevDebugUnitTest
 
-      - name: Build the dev APK
-        run: ./gradlew assembleDevDebug
+      - name: Run phone instrumentation tests on emulator
+        id: phone-instrumentation
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -no-metrics
+          script: ./gradlew :app:connectedDevDebugAndroidTest
 
-      - name: Upload the dev APK
+      - name: Capture emulator crash diagnostics
+        if: failure() && steps.phone-instrumentation.outcome == 'failure'
+        run: |
+          mkdir -p app/build/reports/emulator
+          adb devices -l > app/build/reports/emulator/devices.txt || true
+          adb logcat -d -v threadtime -t 8000 > app/build/reports/emulator/logcat.txt || true
+          adb shell dumpsys activity processes > app/build/reports/emulator/activity-processes.txt || true
+          adb shell dumpsys package com.music.bitchord > app/build/reports/emulator/package.txt || true
+
+      - name: Build the phone dev APK
+        run: ./gradlew :app:assembleDevDebug
+
+      - name: Upload the phone dev APK
         uses: actions/upload-artifact@v4
         with:
-          name: bitchord-dev-debug
-          path: app/build/outputs/apk/dev/debug/*.apk
+          name: bitchord-phone-dev-debug
+          path: app/build/outputs/apk/dev/debug/*universal*.apk
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Upload test reports
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: android-test-reports
-          path: app/build/reports/tests/
+          name: android-phone-test-reports
+          path: |
+            app/build/reports/tests/
+            app/build/reports/androidTests/
+            app/build/reports/emulator/
 
   backend:
     name: Backend · Go
