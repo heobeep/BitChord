@@ -20,6 +20,14 @@ class MornyeRuntime private constructor(
     suspend fun initialize(configJson: String = "{}"): String? =
         invoke("initialize", configJson)?.let(::unwrapJsonString)
 
+    /** Calls the optional download-provider URL resolver. */
+    suspend fun getDownloadUrl(trackId: String, quality: String): JSONObject {
+        val raw = invoke("getDownloadUrl", "${JSONObject.quote(trackId)},${JSONObject.quote(quality)}")
+            ?: throw IllegalStateException("getDownloadUrl returned no result")
+        return runCatching { JSONObject(raw) }
+            .getOrElse { throw IllegalStateException("getDownloadUrl returned invalid JSON: ${it.message}") }
+    }
+
     suspend fun searchTracks(query: String, limit: Int = 20): JSONArray {
         require(limit in 1..100) { "limit must be between 1 and 100" }
         val raw = invoke("searchTracks", "\${JSONObject.quote(query)},$limit")
