@@ -74,16 +74,25 @@ internal object EncryptedPrefs {
             val staleKeyset = isUnverifiable(e) &&
                 context.getSharedPreferences(name, Context.MODE_PRIVATE).contains(KEYSET_ENTRY)
             if (!staleKeyset) {
+                // A previous version may have written secrets to the fallback file.
+                context.deleteSharedPreferences(plainName)
                 throw IllegalStateException("Encrypted storage is required for $name but the device Keystore is unavailable", e)
             }
             context.deleteSharedPreferences(name)
             try {
                 create(context, name)
             } catch (retry: Throwable) {
+                context.deleteSharedPreferences(plainName)
                 throw IllegalStateException("Encrypted storage for $name could not be recreated", retry)
             }
         }
-        moveInRequired(context, plainName, encrypted, name)
+        try {
+            moveInRequired(context, plainName, encrypted, name)
+        } catch (migrationError: Throwable) {
+            // Never leave old credentials or cookies in an unencrypted file.
+            context.deleteSharedPreferences(plainName)
+            throw migrationError
+        }
         return encrypted
     }
 
