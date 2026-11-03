@@ -7,6 +7,8 @@ import org.json.JSONObject
 import org.json.JSONTokener
 import java.io.File
 import java.io.IOException
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 
 /** Per-extension JSON key/value storage, isolated from the installed package. */
 internal class MornyeStorageHost(
@@ -21,7 +23,7 @@ internal class MornyeStorageHost(
                 override fun invoke(args: Array<Any?>): String = synchronized(lock) {
                     requirePermission()
                     val key = args.getOrNull(0)?.toString() ?: ""
-                    JSONObject(readStore()).opt(key)?.let(JSONObject::valueToString) ?: "null"
+                    readStore().opt(key)?.let { value -> JSONArray().put(value).toString().let { json -> json.substring(1, json.length - 1) } } ?: "null"
                 }
             })
             function("set", object : FunctionBinding<String> {
@@ -70,8 +72,11 @@ internal class MornyeStorageHost(
         val temp = File(parent, ".storage-\${System.nanoTime()}.tmp")
         try {
             temp.writeText(json.toString(), Charsets.UTF_8)
-            if (storageFile.exists() && !storageFile.delete()) throw IOException("Cannot replace extension storage")
-            if (!temp.renameTo(storageFile)) throw IOException("Cannot commit extension storage")
+            try {
+                Files.move(temp.toPath(), storageFile.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
+            } catch (_: Exception) {
+                Files.move(temp.toPath(), storageFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
+            }
         } finally {
             temp.delete()
         }
