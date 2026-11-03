@@ -84,6 +84,21 @@ class AddonSourceTest {
     }
 
     @Test
+    fun `LastWave URL and DASH manifest detection recognises spatial codecs`() {
+        assertTrue(LastWaveAddonCompatibility.isAtmosStreamUrl("https://cdn.example.com/atmos/track.mpd"))
+        assertTrue(LastWaveAddonCompatibility.isAtmosStreamUrl("https://cdn.example.com/track-eac3.mp4"))
+        assertFalse(LastWaveAddonCompatibility.isAtmosStreamUrl("https://cdn.example.com/track.flac"))
+
+        val xml = """<MPD codecs="ec-3"><Period/></MPD>"""
+        val encoded = java.util.Base64.getEncoder().encodeToString(xml.toByteArray(Charsets.UTF_8))
+        assertTrue(
+            LastWaveAddonCompatibility.isAtmosStreamUrl(
+                "data:application/dash+xml;base64,$encoded",
+            ),
+        )
+    }
+
+    @Test
     fun `LastWave gets an explicit Atmos value for enabled disabled and stereo requests`() {
         val url = "https://lastwaveaddons.clashprojects.qd.je/personal-token"
 
