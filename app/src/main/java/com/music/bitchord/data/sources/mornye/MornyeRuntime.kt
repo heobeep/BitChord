@@ -109,6 +109,12 @@ class MornyeRuntime private constructor(
                 );
                 return JSON.parse(raw);
             }
+            var storage = {
+                get: function(key) { return JSON.parse(__mornye_storage.get(String(key))); },
+                set: function(key, value) { __mornye_storage.set(String(key), JSON.stringify(value)); },
+                remove: function(key) { __mornye_storage.remove(String(key)); },
+                clear: function() { __mornye_storage.clear(); }
+            };
             var http = {
                 request: function(url, options) {
                     options = options || {};
@@ -141,6 +147,8 @@ class MornyeRuntime private constructor(
                 extensionName = extension.manifest.displayName,
                 javascript = extension.script.readText(Charsets.UTF_8),
                 allowedDomains = extension.manifest.networkDomains,
+                storageFile = java.io.File(extension.dataDirectory, "storage.json"),
+                storagePermission = extension.manifest.storagePermission,
             )
 
         suspend fun load(
@@ -148,6 +156,8 @@ class MornyeRuntime private constructor(
             extensionName: String,
             javascript: String,
             allowedDomains: List<String> = emptyList(),
+            storageFile: java.io.File? = null,
+            storagePermission: Boolean = false,
         ): MornyeRuntime = withContext(Dispatchers.Default) {
             require(extensionId.isNotBlank()) { "extensionId must not be blank" }
             require(extensionName.isNotBlank()) { "extensionName must not be blank" }
@@ -157,6 +167,7 @@ class MornyeRuntime private constructor(
             engine.maxStackSize = 512 * 1024L
             try {
                 MornyeHttpHost(allowedDomains).install(engine)
+                MornyeStorageHost(storageFile ?: java.io.File("mornye-storage-disabled"), storagePermission).install(engine)
                 engine.evaluate<String>(BOOTSTRAP + "\n" + javascript + "\n'loaded'")
                 val registered = engine.evaluate<String>(
                     "typeof __mornye_registered_extension === 'object' && __mornye_registered_extension !== null"
