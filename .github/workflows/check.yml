@@ -47,13 +47,24 @@ jobs:
         run: ./gradlew :app:testDevDebugUnitTest
 
       - name: Run phone instrumentation tests on emulator
+        id: phone-instrumentation
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
           arch: x86_64
           profile: pixel_2
           disable-animations: true
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -no-metrics
           script: ./gradlew :app:connectedDevDebugAndroidTest
+
+      - name: Capture emulator crash diagnostics
+        if: failure() && steps.phone-instrumentation.outcome == 'failure'
+        run: |
+          mkdir -p app/build/reports/emulator
+          adb devices -l > app/build/reports/emulator/devices.txt || true
+          adb logcat -d -v threadtime -t 8000 > app/build/reports/emulator/logcat.txt || true
+          adb shell dumpsys activity processes > app/build/reports/emulator/activity-processes.txt || true
+          adb shell dumpsys package com.music.bitchord > app/build/reports/emulator/package.txt || true
 
       - name: Build the phone dev APK
         run: ./gradlew :app:assembleDevDebug
@@ -71,7 +82,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: android-phone-test-reports
-          path: app/build/reports/tests/
+          path: |
+            app/build/reports/tests/
+            app/build/reports/androidTests/
+            app/build/reports/emulator/
 
   backend:
     name: Backend · Go
