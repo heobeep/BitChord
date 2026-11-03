@@ -19,8 +19,14 @@ import java.nio.file.StandardCopyOption
  * normalized and checked, duplicate entries are rejected, and installation is
  * swapped into place only after the complete package validates.
  */
-class MornyePackageManager internal constructor(private val root: File) {
-    constructor(context: Context) : this(File(context.filesDir, "mornye/extensions"))
+class MornyePackageManager internal constructor(
+    private val root: File,
+    internal val applicationContext: Context? = null,
+) {
+    constructor(context: Context) : this(
+        File(context.filesDir, "mornye/extensions"),
+        context.applicationContext,
+    )
     private val lock = Any()
 
     data class Manifest(
