@@ -41,7 +41,7 @@ internal class MornyeExtensionSource(
             return SourceHealth.Rejected("This extension does not provide track search")
         }
         ensureRuntime(installed)
-        SourceHealth.Ok("\${installed.manifest.displayName} \${installed.manifest.version}")
+        SourceHealth.Ok("${installed.manifest.displayName} ${installed.manifest.version}")
     }.getOrElse { error ->
         SourceHealth.Unreachable(error.message ?: "Extension could not be loaded")
     }
@@ -101,7 +101,7 @@ internal class MornyeExtensionSource(
         }
         runtime = loaded
         loadedVersion = installed.manifest.version
-        TrackLog.d("BitChord", "Loaded Mornye extension \${installed.manifest.name} \${installed.manifest.version}")
+        TrackLog.d("BitChord", "Loaded Mornye extension ${installed.manifest.name} ${installed.manifest.version}")
         loaded
     }
 }
