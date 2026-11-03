@@ -774,6 +774,81 @@ class AddonSourceTest {
         assertNull(AddonSource(config()).stream("t1", StreamRequest.Lossless))
     }
 
+    /** LastWave's own player rejects these known prank CDNs before opening audio. */
+    @Test
+    fun `a known LastWave prank CDN is refused even when it claims FLAC`() = runBlocking {
+        route("/manifest.json", manifest())
+        route(
+            "/stream/t1",
+            json("""{"url":"https://pranks-cdn.example/odd-audio.flac","format":"flac","codec":"flac","quality":"lossless"}"""),
+        )
+
+        assertNull(AddonSource(config()).stream("t1", StreamRequest.Lossless))
+    }
+
+    /** Check every URL in the reply, not just the first one BitChord would open. */
+    @Test
+    fun `a LastWave decoy hidden in an alternate URL invalidates the response`() = runBlocking {
+        route("/manifest.json", manifest())
+        route(
+            "/stream/t1",
+            json(
+                """{"url":"https://cdn.example.com/real-track.flac","directUrl":"https://definatelynagato.example/audio.flac","codec":"flac"}""",
+            ),
+        )
+
+        assertNull(AddonSource(config()).stream("t1", StreamRequest.Lossless))
+    }
+
+    /** LastWave's native client accepts a stream object wrapped under "stream" or "data". */
+    @Test
+    fun `a LastWave wrapped stream and directUrl are decoded natively`() = runBlocking {
+        route("/manifest.json", manifest())
+        route(
+            "/stream/t1",
+            json(
+                """{"stream":{"directUrl":"https://cdn.example.com/track.flac","format":"flac","codec":"flac","quality":"lossless"}}""",
+            ),
+        )
+
+        val stream = AddonSource(config()).stream("t1", StreamRequest.Lossless)
+
+        assertEquals("https://cdn.example.com/track.flac", stream?.url)
+        assertEquals("flac", stream?.format?.codec)
+        assertTrue(stream?.format?.isLossless == true)
+    }
+
+    /** LastWave may return its catalogue as an array rather than {tracks:[...]}. */
+    @Test
+    fun `a LastWave bare search array is decoded`() = runBlocking {
+        route("/manifest.json", manifest())
+        route(
+            "/search",
+            json("""[{"id":"t1","title":"Song","artist":"Artist","duration":183,"audioQuality":"LOSSLESS"}]"""),
+        )
+
+        val songs = AddonSource(config()).search("song", limit = 5)
+
+        assertEquals(1, songs.size)
+        assertEquals("Song", songs.single().title)
+        assertEquals("Artist", songs.single().artist)
+    }
+
+    /** Some LastWave responses put the result array one level below "data". */
+    @Test
+    fun `a LastWave nested data results array is decoded`() = runBlocking {
+        route("/manifest.json", manifest())
+        route(
+            "/search",
+            json("""{"data":{"results":[{"id":"t1","title":"Song","artist":"Artist","duration":183}]}}"""),
+        )
+
+        val songs = AddonSource(config()).search("song", limit = 5)
+
+        assertEquals(1, songs.size)
+        assertEquals("Song", songs.single().title)
+    }
+
     /** A 404 on stream is the addon saying it doesn't hold the track. A miss. */
     @Test
     fun `a stream 404 is a miss, not a crash`() = runBlocking {
