@@ -235,6 +235,14 @@ private val ATMOS_HINT = Regex("""atmos|dolby|eac3[_-]?joc|ec-?3""", RegexOption
 @Serializable
 data class AddonStream(
     @SerialName("url") val url: String = "",
+    /** LastWave and a few other hosts publish more than one candidate URL. */
+    @SerialName("dataUrl") val dataUrl: String? = null,
+    @SerialName("directUrl") val directUrl: String? = null,
+    @SerialName("streamUrl") val streamUrl: String? = null,
+    @SerialName("downloadUrl") val downloadUrl: String? = null,
+    @SerialName("mediaUrl") val mediaUrl: String? = null,
+    /** Inline DASH XML or a URL to its manifest. */
+    @SerialName("manifestXml") val manifestXml: String? = null,
     /** Free text: `mp3`, `flac`, `dash`. Describes the audio, not the transport. */
     @SerialName("format") val format: String = "",
     @SerialName("quality") val quality: String = "",
@@ -258,6 +266,7 @@ data class AddonStream(
     @SerialName("bitrate") val bitrate: Double? = null,
     @SerialName("audioMode") val audioMode: String? = null,
     @SerialName("audioModes") val audioModes: List<String> = emptyList(),
+    @SerialName("atmos") val atmos: Boolean = false,
     /**
      * Why there is no [url], when the addon bothered to say.
      *
@@ -276,6 +285,11 @@ data class AddonStream(
      */
     @SerialName("error") val error: String? = null,
 ) {
+    /** Every direct URL field the addon may supply, in preference order. */
+    val directUrls: List<String>
+        get() = listOf(url, directUrl, streamUrl, downloadUrl, mediaUrl)
+            .filter { it.isNotBlank() }
+
     /** Whichever codec field the addon filled in, lowercased. */
     val statedCodec: String?
         get() = (codec?.ifBlank { null } ?: fileCodec?.ifBlank { null })?.lowercase()
@@ -346,6 +360,7 @@ data class AddonStream(
             val stated = manifest?.ifBlank { null }
                 ?: mediaType?.ifBlank { null }
                 ?: format.ifBlank { null }
+                ?: manifestXml?.takeIf { it.isNotBlank() }?.let { "dash" }
                 ?: return null
             return when (stated.lowercase()) {
                 "hls", "m3u8", "application/x-mpegurl", "application/vnd.apple.mpegurl" -> HLS
@@ -392,7 +407,7 @@ data class AddonStream(
 
     /** Whether the addon says this is the immersive mix rather than a stereo one. */
     val isDolbyAtmos: Boolean
-        get() = ATMOS_HINT.containsMatchIn(
+        get() = atmos || ATMOS_HINT.containsMatchIn(
             "$qualityText ${audioMode.orEmpty()} ${audioModes.joinToString(" ")} ${statedCodec.orEmpty()}",
         )
 
