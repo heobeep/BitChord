@@ -239,6 +239,8 @@ data class AddonStream(
     @SerialName("streamUrl") val streamUrl: String? = null,
     @SerialName("downloadUrl") val downloadUrl: String? = null,
     @SerialName("mediaUrl") val mediaUrl: String? = null,
+    @SerialName("dataUrl") val dataUrl: String? = null,
+    @SerialName("manifestXml") val manifestXml: String? = null,
     /** Free text: `mp3`, `flac`, `dash`. Describes the audio, not the transport. */
     @SerialName("format") val format: String = "",
     @SerialName("quality") val quality: String = "",
@@ -284,6 +286,21 @@ data class AddonStream(
     val playableUrl: String?
         get() = listOfNotNull(url, directUrl, streamUrl, downloadUrl, mediaUrl)
             .firstOrNull { it.isNotBlank() }
+
+    /**
+     * LastWave's private gateway returns a honeypot MP3 when request proof is
+     * missing or invalid. Never pass either known decoy URL/manifest to playback.
+     */
+    val isKnownLastWaveDecoy: Boolean
+        get() {
+            val payloads = listOfNotNull(
+                url, directUrl, streamUrl, downloadUrl, mediaUrl, dataUrl, manifestXml,
+            )
+            return payloads.any { value ->
+                val lower = value.lowercase()
+                lower.contains("pranks-cdn") || lower.contains("definatelynagato")
+            }
+        }
 
     /** Whichever codec field the addon filled in, lowercased. */
     val statedCodec: String?
