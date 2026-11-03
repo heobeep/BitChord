@@ -334,10 +334,18 @@ class AddonClient(rawBaseUrl: String) {
         while (true) {
             (quietUntilMs - System.currentTimeMillis()).takeIf { it > 0 }?.let { delay(it) }
 
-            val request = Request.Builder().url(url)
+            val requestBuilder = Request.Builder().url(url)
                 .header("Accept", "application/json")
                 .header("User-Agent", USER_AGENT)
-                .build()
+
+            // LastWave's native addon gateway expects signed requests on tokenised routes.
+            signLastWaveRequest(url, requestBuilder)
+            if (url.contains("/stream/", ignoreCase = true)) {
+                requestBuilder
+                    .header("X-LW-Intent", "stream")
+                    .header("User-Agent", "LastWave-Player/1.0")
+            }
+            val request = requestBuilder.build()
 
             val wait = client.newCall(request).execute().use { response ->
                 when {
@@ -364,6 +372,27 @@ class AddonClient(rawBaseUrl: String) {
         // Unreachable: every path out of the loop returns or throws.
         @Suppress("UNREACHABLE_CODE")
         throw AddonException("unreachable")
+    }
+
+    /**
+     * Signs LastWave tokenised /a/{token}/ routes. Ordinary addon URLs are unchanged.
+     */
+    private fun signLastWaveRequest(urlStr: String, builder: Request.Builder) {
+        try {
+            val uri = java.net.URI(urlStr)
+            val path = uri.path ?: return
+            val token = Regex("""/a/([^/]+)""").find(path)?.groupValues?.get(1) ?: return
+            val timestamp = (System.currentTimeMillis() / 1000L).toString()
+            val message = "$timestamp\nGET\n$path\n$token"
+            val mac = javax.crypto.Mac.getInstance("HmacSHA256")
+            mac.init(javax.crypto.spec.SecretKeySpec(LASTWAVE_ADDON_SECRET.toByteArray(Charsets.UTF_8), "HmacSHA256"))
+            val signature = mac.doFinal(message.toByteArray(Charsets.UTF_8))
+                .joinToString("") { "%02x".format(it) }
+            builder.header("X-LW-TS", timestamp)
+            builder.header("X-LW-Sign", signature)
+        } catch (failure: Exception) {
+            TrackLog.w(TAG, "Could not sign LastWave addon request: " + failure.message)
+        }
     }
 
     /** How long to wait after a 429, from the header when it sent one. */
