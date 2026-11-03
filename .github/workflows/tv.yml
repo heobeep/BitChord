@@ -1,34 +1,24 @@
 name: TV
 
-# The Android TV app builds from the phone app's sources (see tv/README.md), so
-# a change under app/, shared/, sharedUi/ or native/ can break it as easily as
-# one under tv/.
+# Keep TV validation focused on TV-owned code and build configuration.
+# Shared phone app changes are validated by the Android phone workflow; they
+# should not create a TV build requirement for phone-only work.
 on:
   push:
     branches: [main]
     paths:
       - 'tv/**'
-      - 'app/**'
-      - 'shared/**'
-      - 'sharedUi/**'
-      - 'native/**'
-      - 'build.gradle.kts'
       - 'settings.gradle.kts'
+      - 'build.gradle.kts'
       - 'gradle.properties'
       - 'gradle/**'
-      - '.github/workflows/tv.yml'
   pull_request:
     paths:
       - 'tv/**'
-      - 'app/**'
-      - 'shared/**'
-      - 'sharedUi/**'
-      - 'native/**'
-      - 'build.gradle.kts'
       - 'settings.gradle.kts'
+      - 'build.gradle.kts'
       - 'gradle.properties'
       - 'gradle/**'
-      - '.github/workflows/tv.yml'
 
 concurrency:
   group: tv-${{ github.workflow }}-${{ github.ref }}
