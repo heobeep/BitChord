@@ -238,9 +238,16 @@ class AddonClient(rawBaseUrl: String) {
         return params
     }
 
-    /** LastWave's native gateway uses lower-case quality names and explicit atmos=none. */
-    private fun usesLastWaveProtocol(): Boolean =
-        baseUrl.toHttpUrlOrNull()?.encodedPath?.contains("/a/") == true
+    /** LastWave uses lower-case quality names and an explicit Atmos choice. */
+    private fun usesLastWaveProtocol(): Boolean {
+        val url = baseUrl.toHttpUrlOrNull() ?: return false
+        return url.encodedPath.contains("/a/") ||
+            url.host.equals("l-bitches.clashgram.workers.dev", ignoreCase = true)
+    }
+
+    /** The private token gateway must never be queried without a valid HMAC proof. */
+    private fun isLastWaveTokenizedUrl(url: String): Boolean =
+        url.toHttpUrlOrNull()?.encodedPath?.contains("/a/") == true
 
     /**
      * `auto` when this device and this user both want immersive audio, null
@@ -343,16 +350,24 @@ class AddonClient(rawBaseUrl: String) {
         while (true) {
             (quietUntilMs - System.currentTimeMillis()).takeIf { it > 0 }?.let { delay(it) }
 
+            // Tokenised LastWave URLs return a fake MP3 when the client proof is
+            // absent or wrong. Fail closed instead of ever handing that URL to the player.
+            if (isLastWaveTokenizedUrl(url)) {
+                throw AddonException(
+                    "This private LastWave URL requires the LastWave client signing key. " +
+                        "Use the standalone LastWave worker URL in BitChord instead."
+                )
+            }
+
             val requestBuilder = Request.Builder().url(url)
                 .header("Accept", "application/json")
                 .header("User-Agent", USER_AGENT)
 
-            // LastWave's native addon gateway expects signed requests on tokenised routes.
-            signLastWaveRequest(url, requestBuilder)
-            if (url.contains("/stream/", ignoreCase = true)) {
-                requestBuilder
-                    .header("X-LW-Intent", "stream")
-                    .header("User-Agent", "LastWave-Player/1.0")
+            if (usesLastWaveProtocol()) {
+                requestBuilder.header("User-Agent", "LastWave-Player/1.0")
+                if (url.contains("/stream/", ignoreCase = true)) {
+                    requestBuilder.header("X-LW-Intent", "stream")
+                }
             }
             val request = requestBuilder.build()
 
@@ -381,27 +396,6 @@ class AddonClient(rawBaseUrl: String) {
         // Unreachable: every path out of the loop returns or throws.
         @Suppress("UNREACHABLE_CODE")
         throw AddonException("unreachable")
-    }
-
-    /**
-     * Signs LastWave tokenised /a/{token}/ routes. Ordinary addon URLs are unchanged.
-     */
-    private fun signLastWaveRequest(urlStr: String, builder: Request.Builder) {
-        try {
-            val uri = java.net.URI(urlStr)
-            val path = uri.path ?: return
-            val token = Regex("""/a/([^/]+)""").find(path)?.groupValues?.get(1) ?: return
-            val timestamp = (System.currentTimeMillis() / 1000L).toString()
-            val message = "$timestamp\nGET\n$path\n$token"
-            val mac = javax.crypto.Mac.getInstance("HmacSHA256")
-            mac.init(javax.crypto.spec.SecretKeySpec(LASTWAVE_ADDON_SECRET.toByteArray(Charsets.UTF_8), "HmacSHA256"))
-            val signature = mac.doFinal(message.toByteArray(Charsets.UTF_8))
-                .joinToString("") { "%02x".format(it) }
-            builder.header("X-LW-TS", timestamp)
-            builder.header("X-LW-Sign", signature)
-        } catch (failure: Exception) {
-            TrackLog.w(TAG, "Could not sign LastWave addon request: " + failure.message)
-        }
     }
 
     /** How long to wait after a 429, from the header when it sent one. */
