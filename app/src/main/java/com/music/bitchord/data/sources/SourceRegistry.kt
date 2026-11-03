@@ -324,7 +324,14 @@ object SourceRegistry {
         val existing = configs.value.firstOrNull {
             it.kind == SourceKind.MORNYE_EXTENSION && it.extensionId == extension.manifest.name
         }
-        if (existing != null) return existing
+        if (existing != null) {
+            if (existing.label != extension.manifest.displayName) {
+                val renamed = existing.copy(label = extension.manifest.displayName)
+                update(renamed)
+                return renamed
+            }
+            return existing
+        }
         val config = SourceConfig(
             kind = SourceKind.MORNYE_EXTENSION,
             label = extension.manifest.displayName,
