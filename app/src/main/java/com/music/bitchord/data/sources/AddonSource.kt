@@ -367,7 +367,10 @@ class AddonSource(
             )
             return null
         }
-        if (ModuleSource.malformed(url)) {
+        val isInlineDashManifest =
+            url.startsWith("data:application/dash+xml", ignoreCase = true) &&
+                answer.transport == AddonStream.DASH
+        if (!isInlineDashManifest && ModuleSource.malformed(url)) {
             TrackLog.w(
                 TAG,
                 "${config.displayName}: malformed URL for $trackId; skipping it — ${url.take(120)}",
