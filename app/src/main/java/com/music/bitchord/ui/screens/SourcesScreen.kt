@@ -353,7 +353,7 @@ fun SourcesScreen(
             SettingsRow(
                 icon = SfIcons.Extension,
                 title = "Install Mornye extension",
-                subtitle = "Import a .spotiflac-ext package",
+                subtitle = mornyeInstallMessage ?: "Import a .spotiflac-ext package",
                 onClick = { mornyePackagePicker.launch(arrayOf("*/*")) },
             )
         }
