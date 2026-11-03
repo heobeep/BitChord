@@ -1,5 +1,7 @@
 import http from "node:http";
 import { pathToFileURL } from "node:url";
+import { randomUUID } from "node:crypto";
+import { assembleHybrid } from "./hybrid.mjs";
 
 const DEFAULT_UPSTREAM = "https://l-bitches.clashgram.workers.dev";
 const PORT = Number(process.env.PORT || 3000);
@@ -8,6 +10,8 @@ const REQUEST_TIMEOUT_MS = Number(process.env.REQUEST_TIMEOUT_MS || 15000);
 const RATE_WINDOW_MS = 60_000;
 const RATE_LIMIT = Number(process.env.RATE_LIMIT_PER_MINUTE || 60);
 const hits = new Map();
+const mediaCache = new Map();
+const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || "";
 
 function normalizeBase(value) {
   const url = new URL(value);
@@ -200,6 +204,42 @@ async function handle(req, res) {
       return json(res, 200, { tracks });
     }
 
+    const mediaMatch = url.pathname.match(/^\\/media\\/([a-f0-9-]+)\\.m4a$/i);
+    if (mediaMatch) {
+      const cached = mediaCache.get(mediaMatch[1]);
+      if (!cached || cached.expiresAt < Date.now()) {
+        mediaCache.delete(mediaMatch[1]);
+        return json(res, 404, { error: "Assembled stream expired. Request the track again." });
+      }
+      const range = req.headers.range;
+      let start = 0, end = cached.buffer.length - 1, status = 200;
+      if (range) {
+        const match = range.match(/^bytes=(\\d*)-(\\d*)$/);
+        if (!match) return json(res, 416, { error: "Invalid byte range" });
+        if (match[1] === "") {
+          const suffix = Number(match[2]);
+          if (!suffix) return json(res, 416, { error: "Invalid byte range" });
+          start = Math.max(0, cached.buffer.length - suffix);
+        } else {
+          start = Number(match[1]);
+          if (match[2]) end = Math.min(end, Number(match[2]));
+        }
+        if (!Number.isSafeInteger(start) || start < 0 || start >= cached.buffer.length || end < start) {
+          res.writeHead(416, { "content-range": "bytes */" + cached.buffer.length });
+          return res.end();
+        }
+        status = 206;
+      }
+      const body = cached.buffer.subarray(start, end + 1);
+      res.writeHead(status, {
+        "content-type": "audio/mp4",
+        "content-length": body.length,
+        "accept-ranges": "bytes",
+        "cache-control": "private, max-age=900",
+        ...(status === 206 ? { "content-range": "bytes " + start + "-" + end + "/" + cached.buffer.length } : {}),
+      });
+      return res.end(body);
+    }
     const streamMatch = url.pathname.match(/^\/stream\/(.+)$/);
     if (streamMatch) {
       const id = decodeURIComponent(streamMatch[1]);
@@ -208,13 +248,37 @@ async function handle(req, res) {
         quality: (url.searchParams.get("quality") || "lossless").toLowerCase(),
         atmos: url.searchParams.get("atmos") || "none",
       });
+      const rawStream = extractStream(payload);
       const stream = normalizeStream(payload);
-      if (!stream) {
-        return json(res, 502, {
-          error: "LastWave did not return a usable direct audio URL. Decoy or unsupported manifest responses are blocked.",
+      if (stream) return json(res, 200, stream);
+
+      // LastWave hybrid-v1: assemble and decrypt into a normal range-capable MP4.
+      if (rawStream?.hybrid) {
+        const assembled = await assembleHybrid(rawStream.hybrid, { timeoutMs: REQUEST_TIMEOUT_MS });
+        const mediaId = randomUUID();
+        mediaCache.set(mediaId, { buffer: assembled, expiresAt: Date.now() + 15 * 60_000 });
+        const base = PUBLIC_BASE_URL.replace(/\\/+$/, "") ||
+          ((req.headers["x-forwarded-proto"] || "https") + "://" + req.headers.host);
+        return json(res, 200, {
+          url: base + "/media/" + mediaId + ".m4a",
+          format: "m4a",
+          container: "mp4",
+          codec: rawStream.codec || "flac",
+          quality: rawStream.quality || rawStream.audioQuality || "lossless",
+          manifest: "none",
+          encrypted: false,
+          sampleRate: rawStream.sampleRate,
+          bitDepth: rawStream.bitDepth,
+          bitrate: rawStream.bitrate,
+          audioMode: rawStream.audioMode,
+          audioModes: rawStream.audioModes,
+          atmos: rawStream.atmos,
         });
       }
-      return json(res, 200, stream);
+
+      return json(res, 502, {
+        error: "LastWave returned no playable direct URL or supported hybrid-v1 plan. Decoys and unsupported manifests are blocked.",
+      });
     }
 
     return json(res, 404, { error: "Not found" });
