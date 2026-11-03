@@ -32,6 +32,16 @@ internal object LastWaveAddonCompatibility {
         return DECOY_MARKERS.any(value::contains)
     }
 
+    /**
+     * LastWave's native client always sends an Atmos choice. Explicitly asking
+     * for "none" prevents a server default from substituting an immersive mix
+     * when the listener/device has Atmos disabled or chose a stereo row.
+     */
+    fun atmosParameter(baseUrl: String, atmosWanted: Boolean, stereoOnly: Boolean): String? {
+        if (!isHostedAddon(baseUrl)) return null
+        return if (atmosWanted && !stereoOnly) "auto" else "none"
+    }
+
     private const val HOST = "lastwaveaddons.clashprojects.qd.je"
     private val DECOY_MARKERS = listOf("pranks-cdn", "definatelynagato")
 }
