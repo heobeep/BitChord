@@ -89,7 +89,7 @@ internal class MornyeSessionHost(
         require(namespace.isNotBlank()) { "signedSession.namespace is required" }
         return Config(
             namespace = namespace,
-            baseUrl = base.trimEnd('/'),
+            baseUrl = base.trimEnd('/') + "/",
             appVersion = json.optString("appVersion").ifBlank { "ext-1.0" },
             platform = json.optString("platform").ifBlank { "extension" },
             schemeLabel = json.optString("schemeLabel").ifBlank { "SPOTIFLAC-HMAC-V1" },
@@ -114,8 +114,9 @@ internal class MornyeSessionHost(
 
     fun install(quickJs: QuickJs) {
         quickJs.define("__mornye_session") {
-            function("enabled", FunctionBinding<String> {
-                if (config == null) "false" else "true"
+            function("enabled", object : FunctionBinding<String> {
+                override fun invoke(args: Array<Any?>): String =
+                    if (config == null) "false" else "true"
             })
             function("call", object : FunctionBinding<String> {
                 override fun invoke(args: Array<Any?>): String {
