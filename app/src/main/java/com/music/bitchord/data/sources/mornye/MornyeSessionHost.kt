@@ -605,6 +605,8 @@ internal class MornyeSessionHost(
         ).take(32)
 
     companion object {
+        private const val MAX_RESPONSE_BYTES = 4 * 1024 * 1024
+
         /**
          * Validates the callback state and completes the matching provider grant.
          * Called by the dedicated Android callback activity on an IO dispatcher.
