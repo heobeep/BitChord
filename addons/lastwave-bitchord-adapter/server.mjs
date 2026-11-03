@@ -204,7 +204,7 @@ async function handle(req, res) {
       return json(res, 200, { tracks });
     }
 
-    const mediaMatch = url.pathname.match(/^\\/media\\/([a-f0-9-]+)\\.m4a$/i);
+    const mediaMatch = url.pathname.match(/^\/media\\/([a-f0-9-]+)\.m4a$/i);
     if (mediaMatch) {
       const cached = mediaCache.get(mediaMatch[1]);
       if (!cached || cached.expiresAt < Date.now()) {
@@ -214,7 +214,7 @@ async function handle(req, res) {
       const range = req.headers.range;
       let start = 0, end = cached.buffer.length - 1, status = 200;
       if (range) {
-        const match = range.match(/^bytes=(\\d*)-(\\d*)$/);
+        const match = range.match(/^bytes=(\d*)-(\d*)$/);
         if (!match) return json(res, 416, { error: "Invalid byte range" });
         if (match[1] === "") {
           const suffix = Number(match[2]);
