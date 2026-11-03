@@ -18,7 +18,7 @@ internal class MornyeCookieJar(
     context: Context,
     extensionId: String,
 ) : CookieJar {
-    private val prefs = EncryptedPrefs.open(
+    private val prefs = EncryptedPrefs.openRequired(
         context.applicationContext,
         "bitchord_mornye_cookies",
         "bitchord_mornye_cookies_plain",
