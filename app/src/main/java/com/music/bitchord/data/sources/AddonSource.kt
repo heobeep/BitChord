@@ -376,6 +376,14 @@ class AddonSource(
             )
             return null
         }
+        if (!DeviceCodecs.atmosWanted && LastWaveAddonCompatibility.isAtmosStreamUrl(url)) {
+            TrackLog.w(
+                TAG,
+                "${config.displayName}: skipped an Atmos URL because Atmos is not enabled on this device",
+            )
+            return null
+        }
+
         if (answer.isEncrypted) {
             TrackLog.w(
                 TAG,
@@ -427,7 +435,7 @@ class AddonSource(
             ?: answer.statedContainer?.takeIf { it in SELF_DESCRIBING_CONTAINERS }
             ?: answer.mimeType?.substringAfterLast('/')?.substringBefore(';')?.trim()
                 ?.lowercase(Locale.ROOT)?.takeIf { it in AUDIO_CODECS }
-            ?: if (answer.isDolbyAtmos) {
+            ?: if (answer.isDolbyAtmos || LastWaveAddonCompatibility.isAtmosStreamUrl(url)) {
                 "eac3-joc"
             } else if (ModuleSource.qualityTier(answer.qualityText) == ModuleSource.LOSSLESS) {
                 "flac"
