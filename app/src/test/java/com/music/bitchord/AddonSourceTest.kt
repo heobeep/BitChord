@@ -821,6 +821,20 @@ class AddonSourceTest {
         assertNull(AddonSource(config()).stream("t1", StreamRequest.Lossless))
     }
 
+    /** A hybrid-v1 plan must not fall through to a different URL and play the wrong rendition. */
+    @Test
+    fun `a LastWave hybrid-only response is skipped instead of playing its fallback URL`() = runBlocking {
+        route("/manifest.json", manifest())
+        route(
+            "/stream/t1",
+            json(
+                """{"url":"https://cdn.example.com/fallback.mp3","format":"mp3","codec":"mp3","hybrid":{"cdnUrl":"https://cdn.example.com/track.m4a","initRange":{"start":0,"end":99},"ranges":[{"start":100,"end":999}],"key":"00112233445566778899aabbccddeeff","encrypted":true}}""",
+            ),
+        )
+
+        assertNull(AddonSource(config()).stream("t1", StreamRequest.Lossless))
+    }
+
     /** LastWave's own player rejects these known prank CDNs before opening audio. */
     @Test
     fun `a known LastWave prank CDN is refused even when it claims FLAC`() = runBlocking {
