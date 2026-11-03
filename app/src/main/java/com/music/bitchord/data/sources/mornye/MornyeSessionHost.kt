@@ -41,7 +41,7 @@ internal class MornyeSessionHost(
 ) {
     private val appContext = context.applicationContext
     private val config = manifest.optJSONObject("signedSession")?.let(::readConfig)
-    private val prefs = EncryptedPrefs.open(
+    private val prefs = EncryptedPrefs.openRequired(
         appContext,
         "bitchord_mornye_sessions",
         "bitchord_mornye_sessions_plain",
