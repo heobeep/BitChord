@@ -151,7 +151,12 @@ class MornyeRuntime private constructor(
                     });
                     if (pairs.length) url += (String(url).indexOf('?') >= 0 ? '&' : '?') + pairs.join('&');
                 }
-                var headers = options.headers || options;
+                var headers = options.headers || {};
+                if (!options.headers) {
+                    Object.keys(options).forEach(function(key) {
+                        if (key !== 'params' && key !== 'method' && key !== 'body') headers[key] = options[key];
+                    });
+                }
                 return __mornyeRequest(url, method || options.method || 'GET', options.body, headers);
             }
             var http = {
