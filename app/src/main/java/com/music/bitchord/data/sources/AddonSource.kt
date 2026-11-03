@@ -295,12 +295,14 @@ class AddonSource(
      */
     private fun AddonStream.playbackUrl(): String? {
         val direct = directUrls
-        (listOfNotNull(dataUrl?.takeIf { it.isNotBlank() }) + direct)
-            .firstOrNull { candidate ->
-                candidate.substringBefore('?').substringBefore('#')
-                    .endsWith(".flac", ignoreCase = true)
-            }
-            ?.let { return it }
+        if (!isDolbyAtmos) {
+            (listOfNotNull(dataUrl?.takeIf { it.isNotBlank() }) + direct)
+                .firstOrNull { candidate ->
+                    candidate.substringBefore('?').substringBefore('#')
+                        .endsWith(".flac", ignoreCase = true)
+                }
+                ?.let { return it }
+        }
 
         dataUrl?.takeIf { it.isNotBlank() }?.let { return it }
 
