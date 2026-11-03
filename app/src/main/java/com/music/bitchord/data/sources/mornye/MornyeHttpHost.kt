@@ -3,6 +3,7 @@ package com.music.bitchord.data.sources.mornye
 import com.dokar.quickjs.QuickJs
 import com.dokar.quickjs.binding.FunctionBinding
 import com.dokar.quickjs.binding.define
+import okhttp3.CookieJar
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -23,8 +24,10 @@ import java.util.concurrent.TimeUnit
  */
 internal class MornyeHttpHost(
     private val allowedDomains: List<String>,
+    private val cookieJar: MornyeCookieJar? = null,
 ) {
     private val client = OkHttpClient.Builder()
+        .cookieJar(cookieJar ?: CookieJar.NO_COOKIES)
         .followRedirects(false)
         .followSslRedirects(false)
         .connectTimeout(15, TimeUnit.SECONDS)
@@ -42,6 +45,12 @@ internal class MornyeHttpHost(
                     val headers = args.getOrNull(2)?.toString() ?: "{}"
                     val body = args.getOrNull(3)?.toString()
                     return execute(url, method, headers, body).toString()
+                }
+            })
+            function("clearCookies", object : FunctionBinding<String> {
+                override fun invoke(args: Array<Any?>): String {
+                    cookieJar?.clear()
+                    return "true"
                 }
             })
         }
