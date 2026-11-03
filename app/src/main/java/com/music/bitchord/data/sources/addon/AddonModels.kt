@@ -284,8 +284,14 @@ data class AddonStream(
 ) {
     /** First usable URL across LastWave-compatible stream URL aliases. */
     val playableUrl: String?
-        get() = listOfNotNull(url, directUrl, streamUrl, downloadUrl, mediaUrl)
-            .firstOrNull { it.isNotBlank() }
+        get() = listOfNotNull(
+            url,
+            dataUrl?.takeIf { it.startsWith("https://", ignoreCase = true) || it.startsWith("http://", ignoreCase = true) },
+            directUrl,
+            streamUrl,
+            downloadUrl,
+            mediaUrl,
+        ).firstOrNull { it.isNotBlank() }
 
     /**
      * LastWave's private gateway returns a honeypot MP3 when request proof is
