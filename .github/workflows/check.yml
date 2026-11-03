@@ -46,8 +46,14 @@ jobs:
       - name: Phone unit tests
         run: ./gradlew :app:testDevDebugUnitTest
 
-      - name: Compile phone instrumentation tests
-        run: ./gradlew :app:compileDevDebugAndroidTestKotlin
+      - name: Run phone instrumentation tests on emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          script: ./gradlew :app:connectedDevDebugAndroidTest
 
       - name: Build the phone dev APK
         run: ./gradlew :app:assembleDevDebug
