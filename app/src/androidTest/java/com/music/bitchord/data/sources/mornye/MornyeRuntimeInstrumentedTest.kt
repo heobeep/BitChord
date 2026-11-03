@@ -18,7 +18,7 @@ class MornyeRuntimeInstrumentedTest {
 
     @Test
     fun registersInitializesAndSearchesInOnePersistentContext() = runBlocking {
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val context = InstrumentationRegistry.getInstrumentation().context
         val script = context.assets.open("mornye/registration-smoke.js")
             .bufferedReader()
             .use { it.readText() }
