@@ -1,5 +1,11 @@
 # Mornye authentication and signed-session compatibility
 
+> **Stacked change:** this document belongs to PR #9, which now targets
+> `feat/mornye-native-runtime-poc` (PR #8). It describes the compatibility
+> contract and validation added on top of the native runtime; it does not claim
+> that the complete OAuth, verification, or signed-session lifecycle is shipped.
+>
+
 Status: implementation plan for `feat/mornye-auth-session-support`.
 
 ## Why this is a separate milestone
