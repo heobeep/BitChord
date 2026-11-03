@@ -95,7 +95,7 @@ class MornyeSignedSessionConfigTest {
         assertTrue("signedSession@1" in declared)
         assertTrue("sessionGrant@1" in declared)
         assertFalse("preparedContext@1" in declared)
-        assertNull(MornyeSignedSessionConfig.parse(JSONObject("""{"name":"plain"}""), emptyList()))
+        assertNull(MornyeSignedSessionConfig.parse(JSONObject("""{"name":"plain"}"""), emptyList()))
     }
 
     @Test
