@@ -9,6 +9,7 @@ import com.music.bitchord.data.sources.SourceKind
 import com.music.bitchord.data.sources.StreamRequest
 import com.music.bitchord.data.sources.addon.AddonClient
 import com.music.bitchord.data.sources.addon.LastWaveAddonCompatibility
+import com.music.bitchord.data.sources.addon.AddonTrack
 import com.music.bitchord.playback.StreamContainer
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.Dispatcher
@@ -66,6 +67,20 @@ class AddonSourceTest {
         server.shutdown()
         DeviceCodecs.forced = null
         AppSettings.dolbyAtmos.value = true
+    }
+
+    @Test
+    fun `LastWave snake-case metadata marks Atmos and reads direct stream URL aliases`() {
+        val atmosphere = AddonTrack(
+            id = "atmos-track",
+            audioQualitySnake = "DOLBY_ATMOS",
+            streamUrlCamel = "https://cdn.example.com/track.flac",
+        )
+        assertTrue(atmosphere.isDolbyAtmos)
+        assertEquals("https://cdn.example.com/track.flac", atmosphere.directStreamUrl)
+
+        val hires = AddonTrack(audioQualitySnake = "HI_RES_LOSSLESS 24-bit")
+        assertTrue(hires.isHiRes)
     }
 
     @Test
