@@ -287,7 +287,7 @@ data class AddonStream(
 ) {
     /** Every direct URL field the addon may supply, in preference order. */
     val directUrls: List<String>
-        get() = listOf(url, directUrl, streamUrl, downloadUrl, mediaUrl)
+        get() = listOfNotNull(url, directUrl, streamUrl, downloadUrl, mediaUrl)
             .filter { it.isNotBlank() }
 
     /** Whichever codec field the addon filled in, lowercased. */
