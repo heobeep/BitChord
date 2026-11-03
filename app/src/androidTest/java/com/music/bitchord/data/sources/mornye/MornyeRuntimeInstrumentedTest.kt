@@ -1,5 +1,8 @@
 package com.music.bitchord.data.sources.mornye
 
+import android.content.Context
+import com.music.bitchord.auth.EncryptedPrefs
+
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.runBlocking
@@ -40,6 +43,25 @@ class MornyeRuntimeInstrumentedTest {
         }
     }
 
+    @Test
+    fun requiredEncryptedPrefsNeverWritesSecretsToPlaintextFallback() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val name = "mornye-secure-storage-test"
+        val plainName = "mornye-secure-storage-test-plain"
+        context.deleteSharedPreferences(name)
+        context.deleteSharedPreferences(plainName)
+
+        try {
+            val prefs = EncryptedPrefs.openRequired(context, name, plainName)
+            assertTrue(prefs.edit().putString("secret", "encrypted-only").commit())
+            assertEquals("encrypted-only", prefs.getString("secret", null))
+            assertFalse(context.getSharedPreferences(plainName, Context.MODE_PRIVATE).contains("secret"))
+            assertFalse(context.getSharedPreferences(name, Context.MODE_PRIVATE).contains("secret"))
+        } finally {
+            context.deleteSharedPreferences(name)
+            context.deleteSharedPreferences(plainName)
+        }
+    }
     @Test
     fun rejectsScriptWithoutRegistration() = runBlocking {
         val error = runCatching {
