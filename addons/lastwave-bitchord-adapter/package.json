@@ -1,0 +1,14 @@
+{
+  "name": "lastwave-bitchord-adapter",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A BitChord-compatible addon adapter backed by the public LastWave addon.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test"
+  }
+}
