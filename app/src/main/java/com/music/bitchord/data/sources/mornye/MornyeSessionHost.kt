@@ -46,7 +46,7 @@ internal class MornyeSessionHost(
         "bitchord_mornye_sessions",
         "bitchord_mornye_sessions_plain",
     )
-    private val recordKey = "scope." + (config?.let(::scopeHash) ?: extensionId)
+    private val recordKey = "scope." + extensionId + "." + (config?.let(::scopeHash) ?: "unconfigured")
     private val client = OkHttpClient.Builder()
         .followRedirects(false)
         .followSslRedirects(false)
@@ -154,11 +154,6 @@ internal class MornyeSessionHost(
                         if (args.isNull(2)) "" else args.optString(2),
                         headers,
                     )
-                }
-                "completeGrant" -> {
-                    val grant = args.optString(0)
-                    completeGrant(grant, readRecord().optString("pendingState"))
-                    JSONObject().put("success", true)
                 }
                 else -> error("unknown session method")
             }
@@ -319,6 +314,9 @@ internal class MornyeSessionHost(
         val authUri = Uri.parse(authUrl)
         require(authUri.scheme.equals("https", true)) {
             "verification URL must use HTTPS"
+        }
+        require(isDomainAllowed(authUri.host.orEmpty())) {
+            "verification URL host is missing from permissions.network"
         }
         require(authUri.userInfo.isNullOrEmpty() && isDomainAllowed(authUri.host.orEmpty())) {
             "verification URL host must be declared in permissions.network and contain no credentials"
