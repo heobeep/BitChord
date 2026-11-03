@@ -216,6 +216,10 @@ class MornyePackageManager internal constructor(private val root: File) {
         }.distinct()
         require(types.isNotEmpty()) { "Manifest must declare at least one extension type" }
 
+        // Validate the signed-session scope at install time; the runtime host
+        // consumes the same parsed contract when that feature is enabled.
+        MornyeSignedSessionConfig.parse(json, domains)
+
         return Manifest(
             name = name,
             displayName = displayName,
