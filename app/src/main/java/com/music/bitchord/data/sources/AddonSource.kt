@@ -319,6 +319,18 @@ class AddonSource(
      *    fall back to and refusing is what lets another source be heard.
      */
     private fun openable(url: String, answer: AddonStream, trackId: String, tier: String): SourceStream? {
+        val lowerUrl = url.lowercase()
+        if (answer.isKnownLastWaveDecoy ||
+            lowerUrl.contains("pranks-cdn") ||
+            lowerUrl.contains("definatelynagato")
+        ) {
+            TrackLog.w(
+                TAG,
+                "${config.displayName}: refusing a known LastWave decoy URL for $trackId",
+            )
+            return null
+        }
+
         if (ModuleSource.malformed(url)) {
             TrackLog.w(
                 TAG,
