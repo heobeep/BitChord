@@ -47,6 +47,19 @@ class LastWaveAddonCompatibilityTest {
     }
 
     @Test
+    fun `remote dataUrl is accepted but inline data URI is not treated as a remote stream`() {
+        val remote = json.decodeFromString<AddonStream>(
+            """{"dataUrl":"https://cdn.example/audio.flac"}""",
+        )
+        val inline = json.decodeFromString<AddonStream>(
+            """{"dataUrl":"data:application/dash+xml;base64,PE1QRD4="}""",
+        )
+
+        assertEquals("https://cdn.example/audio.flac", remote.playableUrl)
+        assertNull(inline.playableUrl)
+    }
+
+    @Test
     fun `known LastWave decoy URLs are identified and rejected`() {
         val prankUrl = json.decodeFromString<AddonStream>(
             """{"url":"https://pranks-cdn.example/track.mp3"}""",
