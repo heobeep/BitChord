@@ -115,6 +115,12 @@ class MornyeRuntime private constructor(
                 remove: function(key) { __mornye_storage.remove(String(key)); },
                 clear: function() { __mornye_storage.clear(); }
             };
+            var file = {
+                exists: function(path) { return __mornye_file.exists(String(path)) === 'true'; },
+                read: function(path) { return __mornye_file.read(String(path)); },
+                write: function(path, content) { return __mornye_file.write(String(path), String(content)); },
+                delete: function(path) { return __mornye_file.delete(String(path)) === 'true'; }
+            };
             var http = {
                 request: function(url, options) {
                     options = options || {};
@@ -149,6 +155,8 @@ class MornyeRuntime private constructor(
                 allowedDomains = extension.manifest.networkDomains,
                 storageFile = java.io.File(extension.dataDirectory, "storage.json"),
                 storagePermission = extension.manifest.storagePermission,
+                fileDirectory = java.io.File(extension.dataDirectory, "files"),
+                filePermission = extension.manifest.filePermission,
             )
 
         suspend fun load(
@@ -158,6 +166,8 @@ class MornyeRuntime private constructor(
             allowedDomains: List<String> = emptyList(),
             storageFile: java.io.File? = null,
             storagePermission: Boolean = false,
+            fileDirectory: java.io.File? = null,
+            filePermission: Boolean = false,
         ): MornyeRuntime = withContext(Dispatchers.Default) {
             require(extensionId.isNotBlank()) { "extensionId must not be blank" }
             require(extensionName.isNotBlank()) { "extensionName must not be blank" }
@@ -168,6 +178,7 @@ class MornyeRuntime private constructor(
             try {
                 MornyeHttpHost(allowedDomains).install(engine)
                 MornyeStorageHost(storageFile ?: java.io.File("mornye-storage-disabled"), storagePermission).install(engine)
+                MornyeFileHost(fileDirectory ?: java.io.File("mornye-files-disabled"), filePermission).install(engine)
                 engine.evaluate<String>(BOOTSTRAP + "\n" + javascript + "\n'loaded'")
                 val registered = engine.evaluate<String>(
                     "typeof __mornye_registered_extension === 'object' && __mornye_registered_extension !== null"
