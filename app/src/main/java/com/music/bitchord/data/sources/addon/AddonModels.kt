@@ -152,6 +152,7 @@ data class AddonTrack(
     @SerialName("format") val format: String = "",
     /** Not in the spec, but several addons send it and it says the same thing. */
     @SerialName("audioQuality") val audioQuality: String = "",
+    @SerialName("audio_quality") val audioQualitySnake: String = "",
     /**
      * How the recording is mixed, when the catalogue distinguishes: `STEREO`,
      * `DOLBY_ATMOS`, `SONY_360RA`. Read because for at least one backend it is
@@ -167,7 +168,12 @@ data class AddonTrack(
      * saved on the path that has to finish before audio starts.
      */
     @SerialName("streamURL") val streamURL: String? = null,
+    @SerialName("streamUrl") val streamUrlCamel: String? = null,
 ) {
+    val directStreamUrl: String?
+        get() = streamURL?.takeIf { it.isNotBlank() }
+            ?: streamUrlCamel?.takeIf { it.isNotBlank() }
+
     val durationSec: Int? get() = duration?.takeIf { it > 0 }?.toInt()
 
     /** Whichever artwork the addon filled in. */
@@ -195,11 +201,11 @@ data class AddonTrack(
      */
     val isDolbyAtmos: Boolean
         get() = atmos == true || ATMOS_HINT.containsMatchIn(
-            "$audioQuality ${audioMode.orEmpty()} ${audioModes.joinToString(" ")} $format",
+            "$audioQuality $audioQualitySnake ${audioMode.orEmpty()} ${audioModes.joinToString(" ")} $format",
         )
 
     /** Whether the row names the hi-res tier — Tidal's `HI_RES_LOSSLESS`, `hires-96`, `24-bit`. */
-    val isHiRes: Boolean get() = HI_RES_HINT.containsMatchIn("$audioQuality $format")
+    val isHiRes: Boolean get() = HI_RES_HINT.containsMatchIn("$audioQuality $audioQualitySnake $format")
 }
 
 /** How a row spells the hi-res lossless tier in its quality label. */
@@ -249,6 +255,7 @@ data class AddonStream(
     /** Non-standard spellings of [quality] that addons in the wild send instead. */
     @SerialName("streamQuality") val streamQuality: String = "",
     @SerialName("audioQuality") val audioQuality: String = "",
+    @SerialName("audio_quality") val audioQualitySnake: String = "",
     @SerialName("codec") val codec: String? = null,
     @SerialName("fileCodec") val fileCodec: String? = null,
     @SerialName("container") val container: String? = null,
@@ -299,7 +306,7 @@ data class AddonStream(
         get() = (container?.ifBlank { null } ?: containerFormat?.ifBlank { null })?.lowercase()
 
     /** Every free-text quality field at once, for the label readers to scan. */
-    val qualityText: String get() = "$quality $streamQuality $audioQuality $format"
+    val qualityText: String get() = "$quality $streamQuality $audioQuality $audioQualitySnake $format"
 
     /**
      * Whether this rendition is behind a DRM scheme.
