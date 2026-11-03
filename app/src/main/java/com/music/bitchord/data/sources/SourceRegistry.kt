@@ -319,6 +319,21 @@ object SourceRegistry {
 
     // ── Editing ─────────────────────────────────────────────────────────
 
+    /** Adds an installed local extension as a normal searchable/playable source. */
+    fun addMornyeExtension(extension: com.music.bitchord.data.sources.mornye.MornyePackageManager.InstalledExtension): SourceConfig {
+        val existing = configs.value.firstOrNull {
+            it.kind == SourceKind.MORNYE_EXTENSION && it.extensionId == extension.manifest.name
+        }
+        if (existing != null) return existing
+        val config = SourceConfig(
+            kind = SourceKind.MORNYE_EXTENSION,
+            label = extension.manifest.displayName,
+            extensionId = extension.manifest.name,
+        )
+        add(config)
+        return config
+    }
+
     fun add(config: SourceConfig) = publish(configs.value + config.tidied())
 
     fun update(config: SourceConfig) =
