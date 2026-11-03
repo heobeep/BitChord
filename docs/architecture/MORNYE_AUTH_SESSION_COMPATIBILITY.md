@@ -106,6 +106,10 @@ The callback must be owned by BitChord, not hard-coded to the Mornye app. The re
 9. Parallel provider calls share bootstrap/refresh work and preserve cancellation.
 10. A real current community extension can be installed, request verification, return to BitChord, search, resolve a stream, and play it on phone and Android TV.
 
+## Phone-only release scope
+
+The release gate in this document applies to the Android phone app. Android TV builds and workflows are not part of this feature's acceptance criteria.
+
 ## Release gate
 
 Do not mark Mornye compatibility complete, publish a release APK, or merge the parent Mornye integration PR until the acceptance tests above pass and at least one signed-session community provider has been exercised end to end on a real Android device.
