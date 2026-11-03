@@ -129,12 +129,26 @@ class MornyeRuntime private constructor(
                 write: function(path, content) { return __mornye_file.write(String(path), String(content)); },
                 delete: function(path) { return __mornye_file.delete(String(path)) === 'true'; }
             };
+            function __mornyeHttpOptions(url, method, options) {
+                options = options || {};
+                if (options.params) {
+                    var pairs = [];
+                    Object.keys(options.params).forEach(function(key) {
+                        var value = options.params[key];
+                        if (value !== undefined && value !== null) {
+                            pairs.push(encodeURIComponent(key) + '=' + encodeURIComponent(String(value)));
+                        }
+                    });
+                    if (pairs.length) url += (String(url).indexOf('?') >= 0 ? '&' : '?') + pairs.join('&');
+                }
+                var headers = options.headers || options;
+                return __mornyeRequest(url, method || options.method || 'GET', options.body, headers);
+            }
             var http = {
                 request: function(url, options) {
-                    options = options || {};
-                    return __mornyeRequest(url, options.method || 'GET', options.body, options.headers);
+                    return __mornyeHttpOptions(url, null, options);
                 },
-                get: function(url, headers) { return __mornyeRequest(url, 'GET', null, headers); },
+                get: function(url, options) { return __mornyeHttpOptions(url, 'GET', options); },
                 post: function(url, body, headers) { return __mornyeRequest(url, 'POST', body, headers); },
                 put: function(url, body, headers) { return __mornyeRequest(url, 'PUT', body, headers); },
                 patch: function(url, body, headers) { return __mornyeRequest(url, 'PATCH', body, headers); },
