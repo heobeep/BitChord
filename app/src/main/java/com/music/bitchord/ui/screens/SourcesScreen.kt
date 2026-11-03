@@ -216,12 +216,17 @@ fun SourcesScreen(
             text = { Text("The extension package and its local settings will be removed from this device.") },
             confirmButton = {
                 TextButton(onClick = {
-                    target.extensionId?.let { extensionId ->
-                        runCatching { MornyePackageManager(context).uninstall(extensionId) }
+                    val removed = target.extensionId?.let { extensionId ->
+                        runCatching { MornyePackageManager(context).uninstall(extensionId) }.getOrDefault(false)
+                    } ?: false
+                    if (removed) {
+                        SourceRegistry.remove(target.id)
+                        pendingMornyeUninstall = null
+                        mornyeInstallMessage = "Extension uninstalled"
+                    } else {
+                        pendingMornyeUninstall = null
+                        mornyeInstallMessage = "Could not uninstall extension. Try again."
                     }
-                    SourceRegistry.remove(target.id)
-                    pendingMornyeUninstall = null
-                    mornyeInstallMessage = "Extension uninstalled"
                 }) { Text("Uninstall") }
             },
             dismissButton = {
