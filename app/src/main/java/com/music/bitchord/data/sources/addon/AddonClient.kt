@@ -221,7 +221,7 @@ class AddonClient(rawBaseUrl: String) {
             // setting pinned to its "off" value rather than its default.
             val atmosSetting = declared.firstOrNull { it.key == ATMOS_KEY }
             if (atmosSetting == null) {
-                params.remove(ATMOS_KEY)
+                if (usesLastWaveProtocol()) params[ATMOS_KEY] = "none" else params.remove(ATMOS_KEY)
             } else {
                 params[ATMOS_KEY] = atmosSetting.options
                     .mapNotNull { it.stringValue }
