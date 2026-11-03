@@ -359,7 +359,10 @@ data class AddonStream(
         get() {
             val stated = manifest?.ifBlank { null }
                 ?: mediaType?.ifBlank { null }
+                ?: mimeType?.ifBlank { null }
                 ?: format.ifBlank { null }
+                ?: dataUrl?.takeIf { it.startsWith("data:application/dash+xml", ignoreCase = true) }
+                    ?.let { "dash" }
                 ?: manifestXml?.takeIf { it.isNotBlank() }?.let { "dash" }
                 ?: return null
             return when (stated.lowercase()) {
