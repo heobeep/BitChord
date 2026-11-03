@@ -337,7 +337,7 @@ class AddonSource(
      */
     private fun fromRow(trackId: String, tier: String): SourceStream? {
         val row = rows[trackId] ?: return null
-        val url = row.streamURL?.ifBlank { null } ?: return null
+        val url = row.directStreamUrl ?: return null
         TrackLog.d(TAG, "${config.displayName}: using the search row's own URL for $trackId")
         return openable(url, AddonStream(url = url, format = row.format), trackId, tier)
     }
