@@ -212,7 +212,8 @@ class AddonClient(rawBaseUrl: String) {
             val options = declared.firstOrNull { it.key == QUALITY_KEY }
                 ?.options.orEmpty()
                 .mapNotNull { it.stringValue }
-            params[QUALITY_KEY] = matchTier(tier, options) ?: tier
+            params[QUALITY_KEY] = matchTier(tier, options)
+                ?: if (usesLastWaveProtocol()) tier.lowercase() else tier
         }
         if (stereoOnly) {
             // Asked for the stereo mix by name, so nothing that lets the addon
@@ -227,11 +228,19 @@ class AddonClient(rawBaseUrl: String) {
                     .firstOrNull { ATMOS_OFF.matches(it) }
                     ?: ATMOS_NEVER
             }
+        } else if (usesLastWaveProtocol()) {
+            // LastWave always sends an explicit atmos choice. Omitting it can
+            // leave the gateway's server-side default free to select another mix.
+            params[ATMOS_KEY] = atmosHint() ?: "none"
         } else {
             atmosHint()?.let { params.putIfAbsent(ATMOS_KEY, it) }
         }
         return params
     }
+
+    /** LastWave's native gateway uses lower-case quality names and explicit atmos=none. */
+    private fun usesLastWaveProtocol(): Boolean =
+        baseUrl.toHttpUrlOrNull()?.encodedPath?.contains("/a/") == true
 
     /**
      * `auto` when this device and this user both want immersive audio, null
