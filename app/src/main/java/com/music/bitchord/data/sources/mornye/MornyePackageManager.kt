@@ -43,6 +43,9 @@ class MornyePackageManager internal constructor(private val root: File) {
         val sha256: String,
     ) {
         val script: File get() = File(directory, manifest.entryPoint)
+        /** Persists across extension upgrades; executable package files do not. */
+        val dataDirectory: File
+            get() = File(File(directory.parentFile?.parentFile, "data"), manifest.name)
     }
 
     /**
