@@ -109,6 +109,16 @@ class MornyeRuntime private constructor(
                 warn: function() {}, error: function() {},
                 debug: function() {}
             };
+            var log = console;
+            var utils = {
+                parseJSON: function(value) { return JSON.parse(value); },
+                stringifyJSON: function(value) { return JSON.stringify(value); }
+            };
+            var gobackend = {
+                sanitizeFilename: function(value) {
+                    return String(value).replace(/[\\/:*?"<>|]/g, '_').trim();
+                }
+            };
             function __mornyeRequest(url, method, body, headers) {
                 var raw = __mornye_http.request(
                     String(url), method || 'GET',
