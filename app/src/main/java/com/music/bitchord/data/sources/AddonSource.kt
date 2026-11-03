@@ -260,7 +260,7 @@ class AddonSource(
                 return@withContext fromRow(trackId, tier)
             }
 
-            val url = answer.url.ifBlank { null } ?: run {
+            val url = answer.playableUrl ?: run {
                 // The addon answered, and said it has nothing for this one. Its
                 // own words when it gave any: some report a backend that came
                 // up empty, others a credential the user has to go and set on
