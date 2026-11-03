@@ -19,8 +19,8 @@ import java.nio.file.StandardCopyOption
  * normalized and checked, duplicate entries are rejected, and installation is
  * swapped into place only after the complete package validates.
  */
-class MornyePackageManager(context: Context) {
-    private val root = File(context.filesDir, "mornye/extensions")
+class MornyePackageManager internal constructor(private val root: File) {
+    constructor(context: Context) : this(File(context.filesDir, "mornye/extensions"))
     private val lock = Any()
 
     data class Manifest(
@@ -224,9 +224,10 @@ class MornyePackageManager(context: Context) {
     }
 
     private fun safeRelativePath(raw: String): String {
-        require(raw.isNotBlank() && !raw.startsWith('/') && !raw.startsWith('\\')) { "Package contains an absolute path" }
-        require(!raw.contains('\\') && !raw.contains('\u0000')) { "Package contains an invalid path" }
-        val parts = raw.split('/')
+        val normalized = raw.removeSuffix("/")
+        require(normalized.isNotBlank() && !normalized.startsWith('/') && !normalized.startsWith('\\')) { "Package contains an absolute path" }
+        require(!normalized.contains('\\') && !normalized.contains('\u0000')) { "Package contains an invalid path" }
+        val parts = normalized.split('/')
         require(parts.none { it.isBlank() || it == "." || it == ".." }) { "Package contains a path traversal entry" }
         return parts.joinToString(File.separator)
     }
