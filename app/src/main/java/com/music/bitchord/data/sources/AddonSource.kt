@@ -1,6 +1,6 @@
 package com.music.bitchord.data.sources
 
-import android.util.Base64
+import java.util.Base64
 import com.music.bitchord.data.TrackLog
 import com.music.bitchord.data.model.Song
 import com.music.bitchord.data.settings.AppSettings
@@ -312,9 +312,8 @@ class AddonSource(
                     raw.startsWith("http://", ignoreCase = true) ||
                     raw.startsWith("data:", ignoreCase = true) -> return raw
                 raw.startsWith("<") -> {
-                    val encoded = Base64.encodeToString(
+                    val encoded = Base64.getEncoder().encodeToString(
                         raw.toByteArray(Charsets.UTF_8),
-                        Base64.NO_WRAP,
                     )
                     return "data:application/dash+xml;base64,$encoded"
                 }
