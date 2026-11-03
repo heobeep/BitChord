@@ -117,7 +117,12 @@ class MornyePackageManager internal constructor(private val root: File) {
         val target = File(root, extensionId)
         if (!target.exists()) return@synchronized false
         require(target.canonicalFile.parentFile == root.canonicalFile) { "Invalid extension location" }
-        target.deleteRecursively()
+        val removedPackage = target.deleteRecursively()
+        if (!removedPackage) return@synchronized false
+        val dataRoot = File(root.parentFile, "data").canonicalFile
+        val dataDirectory = File(dataRoot, extensionId).canonicalFile
+        require(dataDirectory.parentFile == dataRoot) { "Invalid extension data location" }
+        !dataDirectory.exists() || dataDirectory.deleteRecursively()
     }
 
     private fun readInstalled(directory: File): InstalledExtension {
