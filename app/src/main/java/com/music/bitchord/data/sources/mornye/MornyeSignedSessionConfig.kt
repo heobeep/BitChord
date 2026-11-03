@@ -121,7 +121,7 @@ internal data class MornyeSignedSessionConfig(
                 bootstrapPath = endpoint("bootstrap", "/bootstrap"),
                 challengePath = endpoint("challenge", "/challenge"),
                 exchangePath = endpoint("exchange", "/session/exchange"),
-                refreshPath = endpoint("refresh", ""),
+                refreshPath = endpoints.optString("refresh").trim().let { value ->\n                    if (value.isEmpty()) "" else endpoint("refresh", value)\n                },
             )
         }
     }
