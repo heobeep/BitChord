@@ -1,5 +1,6 @@
 package com.music.bitchord.data.sources.mornye
 
+import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -11,24 +12,20 @@ import org.junit.Test
 class MornyeSignedSessionConfigTest {
     private fun manifest(
         baseUrl: String = "https://api.example.com/v2",
-        endpoints: String = """{"bootstrap":"/bootstrap","challenge":"/challenge","exchange":"/session/exchange"}""",
-    ) = JSONObject(
-        """
-        {
-          "requiredRuntimeFeatures": ["signedSession@1", "sessionGrant@1"],
-          "signedSession": {
-            "namespace": "example-provider",
-            "baseUrl": "$baseUrl",
-            "appVersion": "provider@1.2.3",
-            "platform": "extension",
-            "schemeLabel": "ZARZ-HMAC-V1",
-            "headerPrefix": "X-Zarz-",
-            "timeWindowSeconds": 300,
-            "endpoints": $endpoints
-          }
-        }
-        """.trimIndent()
-    )
+    ): JSONObject = JSONObject()
+        .put("requiredRuntimeFeatures", JSONArray().put("signedSession@1").put("sessionGrant@1"))
+        .put(
+            "signedSession",
+            JSONObject()
+                .put("namespace", "example-provider")
+                .put("baseUrl", baseUrl)
+                .put("appVersion", "provider@1.2.3")
+                .put("platform", "extension")
+                .put("schemeLabel", "ZARZ-HMAC-V1")
+                .put("headerPrefix", "X-Zarz-")
+                .put("timeWindowSeconds", 300)
+                .put("endpoints", JSONObject().put("bootstrap", "/bootstrap").put("challenge", "/challenge").put("exchange", "/session/exchange")),
+        )
 
     @Test
     fun parsesAmazonStyleSignedSessionScopeAndDefaults() {
