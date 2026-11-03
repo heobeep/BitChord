@@ -116,7 +116,7 @@ class MornyeRuntime private constructor(
             };
             var gobackend = {
                 sanitizeFilename: function(value) {
-                    return String(value).replace(/[\\/:*?"<>|]/g, '_').trim();
+                    return String(value).replaceAll('/', '_').replace(/[\\:*?"<>|]/g, '_').trim();
                 }
             };
             function __mornyeRequest(url, method, body, headers) {
