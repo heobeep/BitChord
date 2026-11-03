@@ -8,18 +8,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
-/**
- * Minimal Mornye-compatible JavaScript runtime.
- *
- * This is deliberately a first runtime milestone, not a claim of full Mornye
- * host compatibility: it implements registerExtension(), lifecycle calls and
- * metadata search. Network, storage, credentials and file APIs are added by
- * the permission-aware host bridge in later milestones.
- *
- * One QuickJS context is kept alive for the extension lifetime so module-level
- * state and the extension object's state survive between calls. Calls are
- * serialized because a QuickJS context must never be entered concurrently.
- */
+/** Isolated QuickJS runtime for one installed Mornye extension. */
 class MornyeRuntime private constructor(
     private val quickJs: QuickJs,
     val extensionId: String,
@@ -28,30 +17,20 @@ class MornyeRuntime private constructor(
     private val callMutex = Mutex()
     private var closed = false
 
-    /** Calls the optional extension initialize(config) hook. */
     suspend fun initialize(configJson: String = "{}"): String? =
         invoke("initialize", configJson)?.let(::unwrapJsonString)
 
-    /**
-     * Calls searchTracks(query, limit) and returns its JSON array.
-     *
-     * The caller is responsible for mapping Mornye's track schema to BitChord's
-     * internal Track model; keeping that adapter separate avoids silently
-     * dropping Metadata-provider fields during the runtime milestone.
-     */
     suspend fun searchTracks(query: String, limit: Int = 20): JSONArray {
         require(limit in 1..100) { "limit must be between 1 and 100" }
-        val args = "${JSONObject.quote(query)},$limit"
-        val raw = invoke("searchTracks", args)
+        val raw = invoke("searchTracks", "\${JSONObject.quote(query)},$limit")
             ?: throw IllegalStateException("searchTracks returned no result")
         return try {
             JSONArray(raw)
         } catch (error: Exception) {
-            throw IllegalStateException("Mornye searchTracks must return an array: ${error.message}")
+            throw IllegalStateException("Mornye searchTracks must return an array: \${error.message}")
         }
     }
 
-    /** Calls cleanup() if present, then releases the JavaScript engine. */
     suspend fun close() {
         callMutex.withLock {
             if (closed) return
@@ -95,7 +74,7 @@ class MornyeRuntime private constructor(
             val raw = quickJs.evaluate<String>("__mornye_call_result")
             val parsed = runCatching { JSONObject(raw) }.getOrNull()
             if (parsed?.has("__mornye_error") == true) {
-                throw IllegalStateException("Mornye $name failed: ${parsed.optString("__mornye_error")}")
+                throw IllegalStateException("Mornye $name failed: \${parsed.optString("__mornye_error")}")
             }
             raw.takeUnless { it == "null" }
         }
@@ -122,16 +101,53 @@ class MornyeRuntime private constructor(
                 warn: function() {}, error: function() {},
                 debug: function() {}
             };
+            function __mornyeRequest(url, method, body, headers) {
+                var raw = __mornye_http.request(
+                    String(url), method || 'GET',
+                    JSON.stringify(headers || {}),
+                    body == null ? null : (typeof body === 'string' ? body : JSON.stringify(body))
+                );
+                return JSON.parse(raw);
+            }
+            var http = {
+                request: function(url, options) {
+                    options = options || {};
+                    return __mornyeRequest(url, options.method || 'GET', options.body, options.headers);
+                },
+                get: function(url, headers) { return __mornyeRequest(url, 'GET', null, headers); },
+                post: function(url, body, headers) { return __mornyeRequest(url, 'POST', body, headers); },
+                put: function(url, body, headers) { return __mornyeRequest(url, 'PUT', body, headers); },
+                patch: function(url, body, headers) { return __mornyeRequest(url, 'PATCH', body, headers); },
+                delete: function(url, headers) { return __mornyeRequest(url, 'DELETE', null, headers); },
+                clearCookies: function() {}
+            };
+            var fetch = function(url, options) {
+                var response = __mornyeRequest(
+                    url, options && options.method || 'GET',
+                    options && options.body, options && options.headers
+                );
+                return {
+                    ok: response.ok, status: response.status, statusText: '',
+                    url: String(url), headers: response.headers,
+                    text: function() { return response.body; },
+                    json: function() { return JSON.parse(response.body); }
+                };
+            };
         """.trimIndent()
 
-        /**
-         * Creates an isolated QuickJS context, evaluates one extension script,
-         * and rejects scripts that do not call registerExtension().
-         */
+        suspend fun load(extension: MornyePackageManager.InstalledExtension): MornyeRuntime =
+            load(
+                extensionId = extension.manifest.name,
+                extensionName = extension.manifest.displayName,
+                javascript = extension.script.readText(Charsets.UTF_8),
+                allowedDomains = extension.manifest.networkDomains,
+            )
+
         suspend fun load(
             extensionId: String,
             extensionName: String,
             javascript: String,
+            allowedDomains: List<String> = emptyList(),
         ): MornyeRuntime = withContext(Dispatchers.Default) {
             require(extensionId.isNotBlank()) { "extensionId must not be blank" }
             require(extensionName.isNotBlank()) { "extensionName must not be blank" }
@@ -140,6 +156,7 @@ class MornyeRuntime private constructor(
             val engine = QuickJs.create(Dispatchers.Default)
             engine.maxStackSize = 512 * 1024L
             try {
+                MornyeHttpHost(allowedDomains).install(engine)
                 engine.evaluate<String>(BOOTSTRAP + "\n" + javascript + "\n'loaded'")
                 val registered = engine.evaluate<String>(
                     "typeof __mornye_registered_extension === 'object' && __mornye_registered_extension !== null"
