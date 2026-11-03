@@ -11,6 +11,7 @@ const RATE_WINDOW_MS = 60_000;
 const RATE_LIMIT = Number(process.env.RATE_LIMIT_PER_MINUTE || 60);
 const hits = new Map();
 const mediaCache = new Map();
+const MAX_MEDIA_CACHE_ENTRIES = 3;
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || "";
 
 function normalizeBase(value) {
@@ -256,6 +257,12 @@ async function handle(req, res) {
       if (rawStream?.hybrid) {
         const assembled = await assembleHybrid(rawStream.hybrid, { timeoutMs: REQUEST_TIMEOUT_MS });
         const mediaId = randomUUID();
+        for (const [key, item] of mediaCache) {
+          if (item.expiresAt < Date.now()) mediaCache.delete(key);
+        }
+        while (mediaCache.size >= MAX_MEDIA_CACHE_ENTRIES) {
+          mediaCache.delete(mediaCache.keys().next().value);
+        }
         mediaCache.set(mediaId, { buffer: assembled, expiresAt: Date.now() + 15 * 60_000 });
         const base = PUBLIC_BASE_URL.replace(/\/+$/, "") ||
           ((req.headers["x-forwarded-proto"] || "https") + "://" + req.headers.host);
