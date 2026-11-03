@@ -4,11 +4,11 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import java.util.Base64
 
 /**
- * Small compatibility rules shared with LastWave's public addon client.
+ * Compatibility rules for LastWave's hosted addon service.
  *
- * The addon protocol is otherwise the same JSON HTTP protocol BitChord already
- * speaks. These rules are deliberately limited to the LastWave service and to
- * the two decoy markers its own resolver refuses.
+ * The wire protocol is otherwise the same JSON HTTP protocol BitChord already
+ * speaks. These rules preserve LastWave's stream intent, Atmos selection and
+ * decoy checks without changing how unrelated addons are requested.
  */
 internal object LastWaveAddonCompatibility {
 
@@ -19,7 +19,7 @@ internal object LastWaveAddonCompatibility {
      */
     fun isHostedAddon(baseUrl: String): Boolean {
         val host = baseUrl.toHttpUrlOrNull()?.host?.lowercase() ?: return false
-        return host == HOST || host.startsWith("lastwaveaddons.")
+        return host == HOST
     }
 
     /**
