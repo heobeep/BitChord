@@ -177,7 +177,7 @@ class MornyeRuntime private constructor(
                 allowedDomains = extension.manifest.networkDomains,
                 storageFile = java.io.File(extension.dataDirectory, "storage.json"),
                 storagePermission = extension.manifest.storagePermission,
-                fileDirectory = java.io.File(extension.dataDirectory, "files"),
+                fileDirectory = extension.dataDirectory,
                 filePermission = extension.manifest.filePermission,
             )
 
