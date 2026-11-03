@@ -97,4 +97,46 @@ class MornyeSignedSessionConfigTest {
         assertFalse("preparedContext@1" in declared)
         assertNull(MornyeSignedSessionConfig.parse(JSONObject("""{"name":"plain"}""), emptyList()))
     }
+
+    @Test
+    fun signedSessionHeadersMatchDeterministicHmacVector() {
+        val config = requireNotNull(
+            MornyeSignedSessionConfig.parse(
+                JSONObject(
+                    """
+                    {
+                      "signedSession": {
+                        "namespace": "example-provider",
+                        "baseUrl": "https://api.example.com/v2",
+                        "appVersion": "provider@1.0.0",
+                        "platform": "extension",
+                        "schemeLabel": "ZARZ-HMAC-V1",
+                        "headerPrefix": "X-Zarz-",
+                        "timeWindowSeconds": 300,
+                        "endpoints": {"bootstrap":"/bootstrap","challenge":"/challenge","exchange":"/session/exchange"}
+                      }
+                    }
+                    """.trimIndent()
+                ),
+                listOf("api.example.com"),
+            )
+        )
+        val headers = MornyeSignedSessionSigner.headers(
+            config = config,
+            record = MornyeSignedSessionSigner.Record("session-id", "session-secret"),
+            method = "POST",
+            requestUrl = "https://api.example.com/v2/tracks",
+            body = """{"track":"123"}""".toByteArray(),
+            nowMillis = 1_760_000_000_123L,
+            nonce = "nonce-123",
+        )
+
+        assertEquals("2025-10-09T08:53:20.123Z", headers["X-Zarz-Timestamp"])
+        assertEquals(
+            "22db04e746cf50046345ce3b147bc417cda6af3eb52a34fb7e0a7b339d64a5a0",
+            headers["X-Zarz-Body-SHA256"],
+        )
+        assertEquals("J0CaqPSbZ5zRdXsZKqz_f7kwRQioRETrGMu2kjBvyik", headers["X-Zarz-Signature"])
+    }
+
 }
