@@ -56,7 +56,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: bitchord-phone-dev-debug
-          path: app/build/outputs/apk/dev/debug/*.apk
+          path: app/build/outputs/apk/dev/debug/*universal*.apk
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Upload test reports
         if: failure()
