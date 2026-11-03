@@ -282,7 +282,7 @@ data class AddonStream(
 ) {
     /** First usable URL across LastWave-compatible stream URL aliases. */
     val playableUrl: String?
-        get() = listOf(url, directUrl, streamUrl, downloadUrl, mediaUrl)
+        get() = listOfNotNull(url, directUrl, streamUrl, downloadUrl, mediaUrl)
             .firstOrNull { it.isNotBlank() }
 
     /** Whichever codec field the addon filled in, lowercased. */
