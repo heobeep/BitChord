@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { normalizeStream, normalizeTrack } from "./server.mjs";
+import { assembleHybrid } from "./hybrid.mjs";
 
 test("normalizes LastWave stream URL aliases to the BitChord url field", () => {
   for (const field of ["directUrl", "streamUrl", "downloadUrl", "mediaUrl", "dataUrl"]) {
@@ -42,4 +43,8 @@ test("normalizes search tracks and strips decoy direct stream links", () => {
     streamURL: "https://pranks-cdn.example/fake.mp3",
   });
   assert.equal(decoy.streamURL, undefined);
+});
+
+test("rejects malformed hybrid-v1 plans instead of returning fake audio", async () => {
+  await assert.rejects(() => assembleHybrid({}), /Invalid LastWave hybrid-v1 plan/);
 });
