@@ -1,5 +1,6 @@
 package com.music.bitchord.data.sources
 
+import android.util.Base64
 import com.music.bitchord.data.TrackLog
 import com.music.bitchord.data.model.Song
 import com.music.bitchord.data.settings.AppSettings
@@ -260,7 +261,7 @@ class AddonSource(
                 return@withContext fromRow(trackId, tier)
             }
 
-            val url = answer.url.ifBlank { null } ?: run {
+            val url = answer.playbackUrl() ?: run {
                 // The addon answered, and said it has nothing for this one. Its
                 // own words when it gave any: some report a backend that came
                 // up empty, others a credential the user has to go and set on
@@ -284,6 +285,42 @@ class AddonSource(
                 }
             }
         }
+
+    /**
+     * LastWave can return the playable item under several URL fields, or as
+     * inline DASH XML. Prefer an available progressive FLAC first, then the
+     * manifest/data URL, then the first other direct URL — the same safe order
+     * used by LastWave's native resolver.
+     */
+    private fun AddonStream.playbackUrl(): String? {
+        val direct = directUrls
+        (listOfNotNull(dataUrl?.takeIf { it.isNotBlank() }) + direct)
+            .firstOrNull { candidate ->
+                candidate.substringBefore('?').substringBefore('#')
+                    .endsWith(".flac", ignoreCase = true)
+            }
+            ?.let { return it }
+
+        dataUrl?.takeIf { it.isNotBlank() }?.let { return it }
+
+        manifestXml?.trim()?.takeIf { it.isNotBlank() }?.let { raw ->
+            when {
+                raw.startsWith("https://", ignoreCase = true) ||
+                    raw.startsWith("http://", ignoreCase = true) ||
+                    raw.startsWith("data:", ignoreCase = true) -> return raw
+                raw.startsWith("<") -> {
+                    val encoded = Base64.encodeToString(
+                        raw.toByteArray(Charsets.UTF_8),
+                        Base64.NO_WRAP,
+                    )
+                    return "data:application/dash+xml;base64,$encoded"
+                }
+                else -> return "data:application/dash+xml;base64,${raw.replace(Regex("\\s+"), "")}"
+            }
+        }
+
+        return direct.firstOrNull()
+    }
 
     /**
      * The stream the search row carried, when the `/stream` call had nothing.
@@ -319,6 +356,14 @@ class AddonSource(
      *    fall back to and refusing is what lets another source be heard.
      */
     private fun openable(url: String, answer: AddonStream, trackId: String, tier: String): SourceStream? {
+        val returnedUrls = answer.directUrls + listOfNotNull(answer.dataUrl, answer.manifestXml)
+        if ((listOf(url) + returnedUrls).any(LastWaveAddonCompatibility::isDecoyStream)) {
+            TrackLog.w(
+                TAG,
+                "${config.displayName}: blocked a known LastWave prank/decoy stream for $trackId",
+            )
+            return null
+        }
         if (ModuleSource.malformed(url)) {
             TrackLog.w(
                 TAG,
