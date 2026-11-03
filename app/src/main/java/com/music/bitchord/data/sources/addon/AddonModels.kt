@@ -235,6 +235,10 @@ private val ATMOS_HINT = Regex("""atmos|dolby|eac3[_-]?joc|ec-?3""", RegexOption
 @Serializable
 data class AddonStream(
     @SerialName("url") val url: String = "",
+    @SerialName("directUrl") val directUrl: String? = null,
+    @SerialName("streamUrl") val streamUrl: String? = null,
+    @SerialName("downloadUrl") val downloadUrl: String? = null,
+    @SerialName("mediaUrl") val mediaUrl: String? = null,
     /** Free text: `mp3`, `flac`, `dash`. Describes the audio, not the transport. */
     @SerialName("format") val format: String = "",
     @SerialName("quality") val quality: String = "",
@@ -276,6 +280,11 @@ data class AddonStream(
      */
     @SerialName("error") val error: String? = null,
 ) {
+    /** First usable URL across LastWave-compatible stream URL aliases. */
+    val playableUrl: String?
+        get() = listOf(url, directUrl, streamUrl, downloadUrl, mediaUrl)
+            .firstOrNull { it.isNotBlank() }
+
     /** Whichever codec field the addon filled in, lowercased. */
     val statedCodec: String?
         get() = (codec?.ifBlank { null } ?: fileCodec?.ifBlank { null })?.lowercase()
