@@ -39,6 +39,8 @@ import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.PlayCircle
 import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import com.music.bitchord.ui.components.IosSwitch
@@ -128,6 +130,7 @@ fun SourcesScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var mornyeInstallMessage by remember { mutableStateOf<String?>(null) }
+    var pendingMornyeUninstall by remember { mutableStateOf<SourceConfig?>(null) }
     val mornyePackagePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             scope.launch {
@@ -206,6 +209,27 @@ fun SourcesScreen(
         }
     }
 
+    pendingMornyeUninstall?.let { target ->
+        AlertDialog(
+            onDismissRequest = { pendingMornyeUninstall = null },
+            title = { Text("Uninstall ${target.displayName}?") },
+            text = { Text("The extension package and its local settings will be removed from this device.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    target.extensionId?.let { extensionId ->
+                        runCatching { MornyePackageManager(context).uninstall(extensionId) }
+                    }
+                    SourceRegistry.remove(target.id)
+                    pendingMornyeUninstall = null
+                    mornyeInstallMessage = "Extension uninstalled"
+                }) { Text("Uninstall") }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingMornyeUninstall = null }) { Text("Cancel") }
+            },
+        )
+    }
+
     // The ceiling in force *right now*, which is the only one this screen can
     // speak for: the rows below are switches the user set once, and whether a
     // given source is reached also depends on which connection is up. Reading
@@ -275,7 +299,11 @@ fun SourcesScreen(
                         // Anything the user configured is theirs to edit or
                         // delete. JioSaavn and YouTube have no address to
                         // change, so a tap on them would open an empty editor.
-                        onClick = if (config.kind.needsServer) ({ onEditSource(config) }) else null,
+                        onClick = when {
+                            config.kind.needsServer -> ({ onEditSource(config) })
+                            config.kind == SourceKind.MORNYE_EXTENSION -> ({ pendingMornyeUninstall = config })
+                            else -> null
+                        },
                         // YouTube gets no switch at all — see
                         // [SourceRegistry.setEnabled] for why one would be a lie.
                         onToggle = if (config.kind == SourceKind.YOUTUBE) {
@@ -964,7 +992,7 @@ private fun SourceConfig.statusLine(health: SourceHealth?): String = when {
     ).joinToString(" · ")
     health is SourceHealth.Rejected -> health.reason
     health is SourceHealth.Unreachable -> stringResource(R.string.source_unreachable, health.reason)
-    kind.needsServer -> stringResource(R.string.checking)
+    kind.needsServer || (kind == SourceKind.MORNYE_EXTENSION && health == null) -> stringResource(R.string.checking)
     else -> kind.labels.take(3).joinToString(" · ")
 }
 
