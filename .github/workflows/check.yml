@@ -45,6 +45,10 @@ jobs:
       - name: Tests
         run: ./gradlew testDevDebugUnitTest
 
+      # Instrumentation tests are compiled even when this hosted job has no emulator.
+      - name: Compile Android instrumentation tests
+        run: ./gradlew compileDevDebugAndroidTestKotlin
+
       - name: Build the dev APK
         run: ./gradlew assembleDevDebug
 
