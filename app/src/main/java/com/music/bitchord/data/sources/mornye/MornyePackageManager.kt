@@ -90,7 +90,7 @@ class MornyePackageManager internal constructor(private val root: File) {
             InstalledExtension(manifest, destination, digest)
         } catch (error: Throwable) {
             staging.deleteRecursively()
-            backup?.let { if (it.exists()) it.deleteRecursively() }
+            // Keep a backup if rollback itself failed; never destroy the last known-good install.
             throw error
         }
     }
