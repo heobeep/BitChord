@@ -57,7 +57,7 @@ internal object MornyeSignedSessionSigner {
             config.appVersion,
             config.platform,
         ).joinToString("\n")
-        val signature = hmac(
+        val signature = hmacBase64(
             rollingKey,
             canonical.toByteArray(StandardCharsets.UTF_8),
         )
@@ -81,7 +81,8 @@ internal object MornyeSignedSessionSigner {
         val mac = Mac.getInstance("HmacSHA256")
         mac.init(SecretKeySpec(key, "HmacSHA256"))
         return mac.doFinal(message)
-    }.let { result ->
-        Base64.getUrlEncoder().withoutPadding().encode(result)
     }
+
+    private fun hmacBase64(key: ByteArray, message: ByteArray): String =
+        Base64.getUrlEncoder().withoutPadding().encodeToString(hmac(key, message))
 }
