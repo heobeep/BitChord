@@ -43,6 +43,7 @@ Environment variables:
 | `LASTWAVE_BASE_URL` | public LastWave worker | Upstream addon root |
 | `REQUEST_TIMEOUT_MS` | `15000` | Upstream timeout |
 | `RATE_LIMIT_PER_MINUTE` | `60` | Per-IP request limit |
+| `PUBLIC_BASE_URL` | inferred from request | Public adapter origin used for assembled media URLs |
 
 ## Safety behavior
 
