@@ -34,16 +34,18 @@ internal class MornyeExtensionSource(
     private val extensionId: String
         get() = config.extensionId ?: error("Mornye extension id is missing")
 
-    override suspend fun health(): SourceHealth = runCatching {
-        val installed = packages.get(extensionId)
-            ?: return SourceHealth.Rejected("Extension is not installed")
-        if ("metadata_provider" !in installed.manifest.types) {
-            return SourceHealth.Rejected("This extension does not provide track search")
+    override suspend fun health(): SourceHealth {
+        return try {
+            val installed = packages.get(extensionId)
+                ?: return SourceHealth.Rejected("Extension is not installed")
+            if ("metadata_provider" !in installed.manifest.types) {
+                return SourceHealth.Rejected("This extension does not provide track search")
+            }
+            ensureRuntime(installed)
+            SourceHealth.Ok(installed.manifest.displayName + " " + installed.manifest.version)
+        } catch (error: Throwable) {
+            SourceHealth.Unreachable(error.message ?: "Extension could not be loaded")
         }
-        ensureRuntime(installed)
-        SourceHealth.Ok("${installed.manifest.displayName} ${installed.manifest.version}")
-    }.getOrElse { error ->
-        SourceHealth.Unreachable(error.message ?: "Extension could not be loaded")
     }
 
     override suspend fun search(
