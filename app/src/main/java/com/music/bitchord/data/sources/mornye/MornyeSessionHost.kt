@@ -82,6 +82,12 @@ internal class MornyeSessionHost(
         val parsed = base.toHttpUrlOrNull()
             ?: throw IllegalArgumentException("signedSession.baseUrl is invalid")
         require(parsed.isHttps) { "signedSession.baseUrl must use HTTPS" }
+        require(parsed.username.isEmpty() && parsed.password.isEmpty()) {
+            "signedSession.baseUrl must not contain embedded credentials"
+        }
+        require(parsed.encodedQuery == null && parsed.encodedFragment == null) {
+            "signedSession.baseUrl must not contain a query or fragment"
+        }
         require(isDomainAllowed(parsed.host)) {
             "signedSession.baseUrl host is missing from permissions.network"
         }
@@ -99,7 +105,8 @@ internal class MornyeSessionHost(
             challengePath = endpoints.optString("challenge").ifBlank { "/challenge" },
             exchangePath = endpoints.optString("exchange").ifBlank { "/session/exchange" },
             refreshPath = endpoints.optString("refresh"),
-            callbackUrl = json.optString("callbackUrl").ifBlank { "mornye://session-grant" },
+            // Verification callbacks are app-owned; extensions cannot redirect grants elsewhere.
+            callbackUrl = "mornye://session-grant",
         )
     }
 
@@ -313,6 +320,9 @@ internal class MornyeSessionHost(
         require(authUri.scheme.equals("https", true)) {
             "verification URL must use HTTPS"
         }
+        require(authUri.userInfo.isNullOrEmpty() && isDomainAllowed(authUri.host.orEmpty())) {
+            "verification URL host must be declared in permissions.network and contain no credentials"
+        }
         record.put("pendingState", state)
         record.put("authUrl", authUrl)
         record.put("openedAt", 0L)
@@ -471,6 +481,9 @@ internal class MornyeSessionHost(
 
     private fun assertAllowed(url: HttpUrl) {
         require(url.isHttps) { "signed-session network requests must use HTTPS" }
+        require(url.username.isEmpty() && url.password.isEmpty()) {
+            "signed-session network requests must not contain embedded credentials"
+        }
         require(isDomainAllowed(url.host)) {
             "signed-session domain is not declared in permissions.network: " + url.host
         }
@@ -486,7 +499,7 @@ internal class MornyeSessionHost(
         val base = cfg.baseUrl.toHttpUrlOrNull()
             ?: throw IllegalArgumentException("signed-session base URL is invalid")
         val raw = path.trim()
-        if (raw.startsWith("https://")) {
+        if (raw.startsWith("https://", ignoreCase = true)) {
             val absolute = raw.toHttpUrlOrNull()
                 ?: throw IllegalArgumentException("signed-session endpoint URL is invalid")
             assertAllowed(absolute)
