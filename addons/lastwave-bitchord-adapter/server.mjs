@@ -62,15 +62,23 @@ function extractTracks(payload) {
   return [];
 }
 
-function normalizeTrack(track) {
+export function normalizeTrack(track) {
   if (!track || typeof track !== "object") return null;
   const id = track.id ?? track.trackId ?? track.videoId;
   const title = track.title ?? track.name;
   if (id == null || !String(id).trim() || !title) return null;
   const streamURL = track.streamURL ?? track.streamUrl ?? track.directUrl ??
     track.downloadUrl ?? track.mediaUrl ?? track.dataUrl;
+  const {
+    streamUrl: _streamUrl,
+    directUrl: _directUrl,
+    downloadUrl: _downloadUrl,
+    mediaUrl: _mediaUrl,
+    dataUrl: _dataUrl,
+    ...safeTrack
+  } = track;
   return {
-    ...track,
+    ...safeTrack,
     id: String(id),
     title: String(title),
     artist: String(track.artist ?? track.artists ?? "Unknown Artist"),
@@ -79,7 +87,7 @@ function normalizeTrack(track) {
     ...(track.artworkURL || track.artwork
       ? { artworkURL: track.artworkURL ?? track.artwork } : {}),
     ...(typeof streamURL === "string" && /^https?:\/\//i.test(streamURL) && !isDecoy(streamURL)
-      ? { streamURL } : {}),
+      ? { streamURL } : { streamURL: undefined }),
   };
 }
 
@@ -92,7 +100,7 @@ function extractStream(payload) {
   return payload;
 }
 
-function normalizeStream(payload) {
+export function normalizeStream(payload) {
   const stream = extractStream(payload);
   if (!stream) return null;
   const candidates = [
