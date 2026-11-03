@@ -218,7 +218,16 @@ class AddonClient(rawBaseUrl: String) {
                 .mapNotNull { it.stringValue }
             params[QUALITY_KEY] = matchTier(tier, options) ?: tier
         }
-        if (stereoOnly) {
+        val lastWaveAtmos = LastWaveAddonCompatibility.atmosParameter(
+            baseUrl = baseUrl,
+            atmosWanted = DeviceCodecs.atmosWanted,
+            stereoOnly = stereoOnly,
+        )
+        if (lastWaveAtmos != null) {
+            // LastWave's host expects an explicit "auto" or "none" on every
+            // search/stream request. Do not leave its default in control.
+            params[ATMOS_KEY] = lastWaveAtmos
+        } else if (stereoOnly) {
             // Asked for the stereo mix by name, so nothing that lets the addon
             // swap in an immersive one: no hint, and a declared `atmos`
             // setting pinned to its "off" value rather than its default.
