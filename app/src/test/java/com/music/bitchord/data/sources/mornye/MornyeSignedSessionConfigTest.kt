@@ -92,28 +92,24 @@ class MornyeSignedSessionConfigTest {
         assertTrue("signedSession@1" in declared)
         assertTrue("sessionGrant@1" in declared)
         assertFalse("preparedContext@1" in declared)
-        assertNull(MornyeSignedSessionConfig.parse(JSONObject("""{"name":"plain"}"""), emptyList()))
+        assertNull(MornyeSignedSessionConfig.parse(JSONObject().put("name", "plain"), emptyList()))
     }
 
     @Test
     fun signedSessionHeadersMatchDeterministicHmacVector() {
         val config = requireNotNull(
             MornyeSignedSessionConfig.parse(
-                JSONObject(
-                    """
-                    {
-                      "signedSession": {
-                        "namespace": "example-provider",
-                        "baseUrl": "https://api.example.com/v2",
-                        "appVersion": "provider@1.0.0",
-                        "platform": "extension",
-                        "schemeLabel": "ZARZ-HMAC-V1",
-                        "headerPrefix": "X-Zarz-",
-                        "timeWindowSeconds": 300,
-                        "endpoints": {"bootstrap":"/bootstrap","challenge":"/challenge","exchange":"/session/exchange"}
-                      }
-                    }
-                    """.trimIndent()
+                JSONObject().put(
+                    "signedSession",
+                    JSONObject()
+                        .put("namespace", "example-provider")
+                        .put("baseUrl", "https://api.example.com/v2")
+                        .put("appVersion", "provider@1.0.0")
+                        .put("platform", "extension")
+                        .put("schemeLabel", "ZARZ-HMAC-V1")
+                        .put("headerPrefix", "X-Zarz-")
+                        .put("timeWindowSeconds", 300)
+                        .put("endpoints", JSONObject().put("bootstrap", "/bootstrap").put("challenge", "/challenge").put("exchange", "/session/exchange")),
                 ),
                 listOf("api.example.com"),
             )
