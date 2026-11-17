@@ -2,9 +2,12 @@ package com.music.bitchord.data.sources.addon
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.booleanOrNull
 
 /**
@@ -152,6 +155,7 @@ data class AddonTrack(
     @SerialName("format") val format: String = "",
     /** Not in the spec, but several addons send it and it says the same thing. */
     @SerialName("audioQuality") val audioQuality: String = "",
+    @SerialName("audio_quality") val audioQualitySnake: String = "",
     /**
      * How the recording is mixed, when the catalogue distinguishes: `STEREO`,
      * `DOLBY_ATMOS`, `SONY_360RA`. Read because for at least one backend it is
@@ -167,7 +171,12 @@ data class AddonTrack(
      * saved on the path that has to finish before audio starts.
      */
     @SerialName("streamURL") val streamURL: String? = null,
+    @SerialName("streamUrl") val streamUrlCamel: String? = null,
 ) {
+    val directStreamUrl: String?
+        get() = streamURL?.takeIf { it.isNotBlank() }
+            ?: streamUrlCamel?.takeIf { it.isNotBlank() }
+
     val durationSec: Int? get() = duration?.takeIf { it > 0 }?.toInt()
 
     /** Whichever artwork the addon filled in. */
@@ -195,11 +204,11 @@ data class AddonTrack(
      */
     val isDolbyAtmos: Boolean
         get() = atmos == true || ATMOS_HINT.containsMatchIn(
-            "$audioQuality ${audioMode.orEmpty()} ${audioModes.joinToString(" ")} $format",
+            "$audioQuality $audioQualitySnake ${audioMode.orEmpty()} ${audioModes.joinToString(" ")} $format",
         )
 
     /** Whether the row names the hi-res tier — Tidal's `HI_RES_LOSSLESS`, `hires-96`, `24-bit`. */
-    val isHiRes: Boolean get() = HI_RES_HINT.containsMatchIn("$audioQuality $format")
+    val isHiRes: Boolean get() = HI_RES_HINT.containsMatchIn("$audioQuality $audioQualitySnake $format")
 }
 
 /** How a row spells the hi-res lossless tier in its quality label. */
@@ -235,12 +244,21 @@ private val ATMOS_HINT = Regex("""atmos|dolby|eac3[_-]?joc|ec-?3""", RegexOption
 @Serializable
 data class AddonStream(
     @SerialName("url") val url: String = "",
+    /** LastWave and a few other hosts publish more than one candidate URL. */
+    @SerialName("dataUrl") val dataUrl: String? = null,
+    @SerialName("directUrl") val directUrl: String? = null,
+    @SerialName("streamUrl") val streamUrl: String? = null,
+    @SerialName("downloadUrl") val downloadUrl: String? = null,
+    @SerialName("mediaUrl") val mediaUrl: String? = null,
+    /** Inline DASH XML or a URL to its manifest. */
+    @SerialName("manifestXml") val manifestXml: String? = null,
     /** Free text: `mp3`, `flac`, `dash`. Describes the audio, not the transport. */
     @SerialName("format") val format: String = "",
     @SerialName("quality") val quality: String = "",
     /** Non-standard spellings of [quality] that addons in the wild send instead. */
     @SerialName("streamQuality") val streamQuality: String = "",
     @SerialName("audioQuality") val audioQuality: String = "",
+    @SerialName("audio_quality") val audioQualitySnake: String = "",
     @SerialName("codec") val codec: String? = null,
     @SerialName("fileCodec") val fileCodec: String? = null,
     @SerialName("container") val container: String? = null,
@@ -252,12 +270,15 @@ data class AddonStream(
     @SerialName("mimeType") val mimeType: String? = null,
     /** `false`, or the name of a DRM scheme. Anything but false is refused. */
     @SerialName("encrypted") val encrypted: JsonElement? = null,
+    /** LastWave hybrid-v1 carries encrypted CDN byte ranges and a content key. */
+    @SerialName("hybrid") val hybrid: JsonElement? = null,
     @SerialName("sampleRate") val sampleRate: Double? = null,
     @SerialName("bitDepth") val bitDepth: Double? = null,
     /** Bits per second, per the spec's neighbours; normalised in [kbps]. */
     @SerialName("bitrate") val bitrate: Double? = null,
     @SerialName("audioMode") val audioMode: String? = null,
     @SerialName("audioModes") val audioModes: List<String> = emptyList(),
+    @SerialName("atmos") val atmos: Boolean = false,
     /**
      * Why there is no [url], when the addon bothered to say.
      *
@@ -276,6 +297,11 @@ data class AddonStream(
      */
     @SerialName("error") val error: String? = null,
 ) {
+    /** Every direct URL field the addon may supply, in preference order. */
+    val directUrls: List<String>
+        get() = listOfNotNull(url, directUrl, streamUrl, downloadUrl, mediaUrl)
+            .filter { it.isNotBlank() }
+
     /** Whichever codec field the addon filled in, lowercased. */
     val statedCodec: String?
         get() = (codec?.ifBlank { null } ?: fileCodec?.ifBlank { null })?.lowercase()
@@ -285,7 +311,7 @@ data class AddonStream(
         get() = (container?.ifBlank { null } ?: containerFormat?.ifBlank { null })?.lowercase()
 
     /** Every free-text quality field at once, for the label readers to scan. */
-    val qualityText: String get() = "$quality $streamQuality $audioQuality $format"
+    val qualityText: String get() = "$quality $streamQuality $audioQuality $audioQualitySnake $format"
 
     /**
      * Whether this rendition is behind a DRM scheme.
@@ -304,6 +330,20 @@ data class AddonStream(
             return element.content.isNotBlank() &&
                 !element.content.equals("false", ignoreCase = true) &&
                 !element.content.equals("none", ignoreCase = true)
+        }
+
+    /**
+     * Whether LastWave supplied enough hybrid-v1 information to use its
+     * encrypted byte-range route. BitChord does not implement that decrypting
+     * proxy yet, so it must not play the plan's unrelated fallback URL instead.
+     */
+    val hasUsableHybrid: Boolean
+        get() {
+            val plan = hybrid as? JsonObject ?: return false
+            val cdnUrl = (plan["cdnUrl"] as? JsonPrimitive)?.contentOrNull
+            val initRange = plan["initRange"] as? JsonObject
+            val ranges = plan["ranges"] as? JsonArray
+            return !cdnUrl.isNullOrBlank() && initRange != null && !ranges.isNullOrEmpty()
         }
 
     /**
@@ -345,7 +385,11 @@ data class AddonStream(
         get() {
             val stated = manifest?.ifBlank { null }
                 ?: mediaType?.ifBlank { null }
+                ?: mimeType?.ifBlank { null }
                 ?: format.ifBlank { null }
+                ?: dataUrl?.takeIf { it.startsWith("data:application/dash+xml", ignoreCase = true) }
+                    ?.let { "dash" }
+                ?: manifestXml?.takeIf { it.isNotBlank() }?.let { "dash" }
                 ?: return null
             return when (stated.lowercase()) {
                 "hls", "m3u8", "application/x-mpegurl", "application/vnd.apple.mpegurl" -> HLS
@@ -392,7 +436,7 @@ data class AddonStream(
 
     /** Whether the addon says this is the immersive mix rather than a stereo one. */
     val isDolbyAtmos: Boolean
-        get() = ATMOS_HINT.containsMatchIn(
+        get() = atmos || ATMOS_HINT.containsMatchIn(
             "$qualityText ${audioMode.orEmpty()} ${audioModes.joinToString(" ")} ${statedCodec.orEmpty()}",
         )
 

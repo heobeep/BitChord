@@ -1,5 +1,6 @@
 package com.music.bitchord.data.sources
 
+import java.util.Base64
 import com.music.bitchord.data.TrackLog
 import com.music.bitchord.data.model.Song
 import com.music.bitchord.data.settings.AppSettings
@@ -9,6 +10,7 @@ import com.music.bitchord.data.sources.addon.AddonManifest
 import com.music.bitchord.data.sources.addon.AddonNotFound
 import com.music.bitchord.data.sources.addon.AddonStream
 import com.music.bitchord.data.sources.addon.AddonTrack
+import com.music.bitchord.data.sources.addon.LastWaveAddonCompatibility
 import com.music.bitchord.playback.StreamContainer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -260,7 +262,18 @@ class AddonSource(
                 return@withContext fromRow(trackId, tier)
             }
 
-            val url = answer.url.ifBlank { null } ?: run {
+            val url = answer.playbackUrl() ?: run {
+                if (answer.hasUsableHybrid) {
+                    // LastWave's hybrid-v1 plan needs a local range-fetching
+                    // decryptor BitChord does not have yet. Do not play a
+                    // different URL from the same response as though it were
+                    // the intended lossless audio.
+                    TrackLog.w(
+                        TAG,
+                        "${config.displayName}: $trackId uses unsupported hybrid-v1 audio; passing to the next source",
+                    )
+                    return@withContext null
+                }
                 // The addon answered, and said it has nothing for this one. Its
                 // own words when it gave any: some report a backend that came
                 // up empty, others a credential the user has to go and set on
@@ -286,6 +299,47 @@ class AddonSource(
         }
 
     /**
+     * LastWave can return the playable item under several URL fields, inline
+     * DASH XML, or an encrypted hybrid-v1 plan. A direct FLAC wins first; a
+     * usable hybrid-only response is declined until BitChord has its decryptor;
+     * otherwise the manifest/data URL or first direct URL is used.
+     */
+    private fun AddonStream.playbackUrl(): String? {
+        val direct = directUrls
+        if (!isDolbyAtmos) {
+            (listOfNotNull(dataUrl?.takeIf { it.isNotBlank() }) + direct)
+                .firstOrNull { candidate ->
+                    candidate.substringBefore('?').substringBefore('#')
+                        .endsWith(".flac", ignoreCase = true)
+                }
+                ?.let { return it }
+        }
+
+        // The native LastWave resolver prefers hybrid-v1 over DASH/other
+        // fallback URLs whenever a usable encrypted range plan is present.
+        if (hasUsableHybrid) return null
+
+        dataUrl?.takeIf { it.isNotBlank() }?.let { return it }
+
+        manifestXml?.trim()?.takeIf { it.isNotBlank() }?.let { raw ->
+            when {
+                raw.startsWith("https://", ignoreCase = true) ||
+                    raw.startsWith("http://", ignoreCase = true) ||
+                    raw.startsWith("data:", ignoreCase = true) -> return raw
+                raw.startsWith("<") -> {
+                    val encoded = Base64.getEncoder().encodeToString(
+                        raw.toByteArray(Charsets.UTF_8),
+                    )
+                    return "data:application/dash+xml;base64,$encoded"
+                }
+                else -> return "data:application/dash+xml;base64,${raw.replace(Regex("\\s+"), "")}"
+            }
+        }
+
+        return direct.firstOrNull()
+    }
+
+    /**
      * The stream the search row carried, when the `/stream` call had nothing.
      *
      * The spec allows a row to publish its own `streamURL` and says a host may
@@ -298,7 +352,7 @@ class AddonSource(
      */
     private fun fromRow(trackId: String, tier: String): SourceStream? {
         val row = rows[trackId] ?: return null
-        val url = row.streamURL?.ifBlank { null } ?: return null
+        val url = row.directStreamUrl ?: return null
         TrackLog.d(TAG, "${config.displayName}: using the search row's own URL for $trackId")
         return openable(url, AddonStream(url = url, format = row.format), trackId, tier)
     }
@@ -319,13 +373,32 @@ class AddonSource(
      *    fall back to and refusing is what lets another source be heard.
      */
     private fun openable(url: String, answer: AddonStream, trackId: String, tier: String): SourceStream? {
-        if (ModuleSource.malformed(url)) {
+        val returnedUrls = answer.directUrls + listOfNotNull(answer.dataUrl, answer.manifestXml)
+        if ((listOf(url) + returnedUrls).any(LastWaveAddonCompatibility::isDecoyStream)) {
+            TrackLog.w(
+                TAG,
+                "${config.displayName}: blocked a known LastWave prank/decoy stream for $trackId",
+            )
+            return null
+        }
+        val isInlineDashManifest =
+            url.startsWith("data:application/dash+xml", ignoreCase = true) &&
+                answer.transport == AddonStream.DASH
+        if (!isInlineDashManifest && ModuleSource.malformed(url)) {
             TrackLog.w(
                 TAG,
                 "${config.displayName}: malformed URL for $trackId; skipping it — ${url.take(120)}",
             )
             return null
         }
+        if (!DeviceCodecs.atmosWanted && LastWaveAddonCompatibility.isAtmosStreamUrl(url)) {
+            TrackLog.w(
+                TAG,
+                "${config.displayName}: skipped an Atmos URL because Atmos is not enabled on this device",
+            )
+            return null
+        }
+
         if (answer.isEncrypted) {
             TrackLog.w(
                 TAG,
@@ -377,7 +450,7 @@ class AddonSource(
             ?: answer.statedContainer?.takeIf { it in SELF_DESCRIBING_CONTAINERS }
             ?: answer.mimeType?.substringAfterLast('/')?.substringBefore(';')?.trim()
                 ?.lowercase(Locale.ROOT)?.takeIf { it in AUDIO_CODECS }
-            ?: if (answer.isDolbyAtmos) {
+            ?: if (answer.isDolbyAtmos || LastWaveAddonCompatibility.isAtmosStreamUrl(url)) {
                 "eac3-joc"
             } else if (ModuleSource.qualityTier(answer.qualityText) == ModuleSource.LOSSLESS) {
                 "flac"

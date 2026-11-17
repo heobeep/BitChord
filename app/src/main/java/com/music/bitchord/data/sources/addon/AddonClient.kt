@@ -12,6 +12,10 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.decodeFromJsonElement
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -117,7 +121,7 @@ class AddonClient(rawBaseUrl: String) {
      * read the [Result] rather than the count.
      */
     suspend fun probeSearch(): Result<Int> =
-        fetch<AddonSearchResponse>(endpoint(listOf("search"), mapOf("q" to PROBE_QUERY)))
+        fetchSearch(endpoint(listOf("search"), mapOf("q" to PROBE_QUERY)))
             .map { it.tracks.size }
 
     // ── Search ────────────────────────────────────────────────────────────
@@ -142,7 +146,7 @@ class AddonClient(rawBaseUrl: String) {
             key = keyOf(trimmed, params.toString()),
             describe = { "▶ addon search(${redact(baseUrl)}) q=\"$trimmed\" tier=$tier" },
         ) {
-            fetch<AddonSearchResponse>(endpoint(listOf("search"), params + ("q" to trimmed)))
+            fetchSearch(endpoint(listOf("search"), params + ("q" to trimmed)))
         }.map { it.tracks }
     }
 
@@ -167,7 +171,7 @@ class AddonClient(rawBaseUrl: String) {
             key = keyOf(trackId, params.toString()),
             describe = { "▶ addon stream(${redact(baseUrl)}) id=$trackId tier=$tier" },
         ) {
-            fetch<AddonStream>(endpoint(listOf("stream", trackId), params))
+            fetchStream(endpoint(listOf("stream", trackId), params))
         }
     }
 
@@ -214,7 +218,16 @@ class AddonClient(rawBaseUrl: String) {
                 .mapNotNull { it.stringValue }
             params[QUALITY_KEY] = matchTier(tier, options) ?: tier
         }
-        if (stereoOnly) {
+        val lastWaveAtmos = LastWaveAddonCompatibility.atmosParameter(
+            baseUrl = baseUrl,
+            atmosWanted = DeviceCodecs.atmosWanted,
+            stereoOnly = stereoOnly,
+        )
+        if (lastWaveAtmos != null) {
+            // LastWave's host expects an explicit "auto" or "none" on every
+            // search/stream request. Do not leave its default in control.
+            params[ATMOS_KEY] = lastWaveAtmos
+        } else if (stereoOnly) {
             // Asked for the stereo mix by name, so nothing that lets the addon
             // swap in an immersive one: no hint, and a declared `atmos`
             // setting pinned to its "off" value rather than its default.
@@ -280,7 +293,19 @@ class AddonClient(rawBaseUrl: String) {
      * which an addon that bothered to order them makes its recommended tier.
      */
     private fun matchTier(tier: String, options: List<String>): String? {
-        if (options.isEmpty()) return null
+        if (options.isEmpty()) {
+            // LastWave's host uses lower-case wire tiers; sending BitChord's
+            // internal enum ("LOSSLESS") can select a backend default instead.
+            if (LastWaveAddonCompatibility.isHostedAddon(baseUrl)) {
+                return when (tier.uppercase()) {
+                    TIER_LOSSLESS -> "lossless"
+                    TIER_HIGH -> "high"
+                    TIER_LOW -> "low"
+                    else -> tier
+                }
+            }
+            return null
+        }
         options.firstOrNull { it.equals(tier, ignoreCase = true) }?.let { return it }
         val wanted = when (tier.uppercase()) {
             TIER_LOSSLESS -> LOSSLESS_WORDS
@@ -304,15 +329,58 @@ class AddonClient(rawBaseUrl: String) {
     }
 
     private suspend inline fun <reified T> fetch(url: String): Result<T> =
-        runCatching { json.decodeFromString<T>(body(url)) }
+        fetchElement(url).mapCatching { json.decodeFromJsonElement<T>(it) }
+
+    /**
+     * LastWave's host accepts both the standard {tracks:[...]} object and the
+     * array/wrapper shapes its native client already tolerates.
+     */
+    private suspend fun fetchSearch(url: String): Result<AddonSearchResponse> =
+        fetchElement(url).mapCatching { root ->
+            val items = findTrackArray(root)
+                ?: throw AddonException("Addon search response did not contain a track list")
+            val tracks = items.mapNotNull { item ->
+                runCatching { json.decodeFromJsonElement<AddonTrack>(item) }.getOrNull()
+                    ?.takeIf { it.id.isNotBlank() && it.title.isNotBlank() }
+            }
+            AddonSearchResponse(tracks)
+        }
+
+    /**
+     * LastWave may wrap its stream object under "stream" or "data". Decode the
+     * actual payload rather than silently treating the wrapper as an empty URL.
+     */
+    private suspend fun fetchStream(url: String): Result<AddonStream> =
+        fetchElement(url, streamIntent = true).mapCatching { root ->
+            json.decodeFromJsonElement<AddonStream>(streamPayload(root))
+        }
+
+    private suspend fun fetchElement(url: String, streamIntent: Boolean = false): Result<JsonElement> =
+        runCatching { json.parseToJsonElement(body(url, streamIntent)) }
             .onFailure { failure ->
                 if (failure is CancellationException) throw failure
-                // A miss is not worth a line. Everything else is: this is the
-                // only place that knows why an addon didn't answer.
                 if (failure !is AddonNotFound) {
                     TrackLog.w(TAG, "  ✗ addon call failed ${redact(url)}: ${failure.message}")
                 }
             }
+
+    private fun findTrackArray(element: JsonElement, depth: Int = 0): JsonArray? {
+        if (element is JsonArray) return element
+        if (depth >= 3) return null
+        val obj = element as? JsonObject ?: return null
+        for (key in listOf("tracks", "data", "results", "items")) {
+            val child = obj[key] ?: continue
+            findTrackArray(child, depth + 1)?.let { return it }
+        }
+        return null
+    }
+
+    private fun streamPayload(element: JsonElement, depth: Int = 0): JsonElement {
+        if (depth >= 3) return element
+        val obj = element as? JsonObject ?: return element
+        val nested = (obj["stream"] as? JsonObject) ?: (obj["data"] as? JsonObject)
+        return nested?.let { streamPayload(it, depth + 1) } ?: element
+    }
 
     /**
      * One GET, with the addon's own back-pressure honoured.
@@ -329,15 +397,20 @@ class AddonClient(rawBaseUrl: String) {
      * is precisely the miss the caller is equipped to handle and not something
      * to log as a fault.
      */
-    private suspend fun body(url: String): String = withContext(Dispatchers.IO) {
+    private suspend fun body(url: String, streamIntent: Boolean = false): String = withContext(Dispatchers.IO) {
         var attempt = 0
         while (true) {
             (quietUntilMs - System.currentTimeMillis()).takeIf { it > 0 }?.let { delay(it) }
 
-            val request = Request.Builder().url(url)
+            val requestBuilder = Request.Builder().url(url)
                 .header("Accept", "application/json")
                 .header("User-Agent", USER_AGENT)
-                .build()
+            if (streamIntent && LastWaveAddonCompatibility.isHostedAddon(baseUrl)) {
+                requestBuilder
+                    .header("X-LW-Intent", "stream")
+                    .header("User-Agent", "LastWave-Player/1.0")
+            }
+            val request = requestBuilder.build()
 
             val wait = client.newCall(request).execute().use { response ->
                 when {

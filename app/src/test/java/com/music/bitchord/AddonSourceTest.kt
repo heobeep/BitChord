@@ -8,6 +8,8 @@ import com.music.bitchord.data.sources.SourceHealth
 import com.music.bitchord.data.sources.SourceKind
 import com.music.bitchord.data.sources.StreamRequest
 import com.music.bitchord.data.sources.addon.AddonClient
+import com.music.bitchord.data.sources.addon.LastWaveAddonCompatibility
+import com.music.bitchord.data.sources.addon.AddonTrack
 import com.music.bitchord.playback.StreamContainer
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.Dispatcher
@@ -65,6 +67,51 @@ class AddonSourceTest {
         server.shutdown()
         DeviceCodecs.forced = null
         AppSettings.dolbyAtmos.value = true
+    }
+
+    @Test
+    fun `LastWave snake-case metadata marks Atmos and reads direct stream URL aliases`() {
+        val atmosphere = AddonTrack(
+            id = "atmos-track",
+            audioQualitySnake = "DOLBY_ATMOS",
+            streamUrlCamel = "https://cdn.example.com/track.flac",
+        )
+        assertTrue(atmosphere.isDolbyAtmos)
+        assertEquals("https://cdn.example.com/track.flac", atmosphere.directStreamUrl)
+
+        val hires = AddonTrack(audioQualitySnake = "HI_RES_LOSSLESS 24-bit")
+        assertTrue(hires.isHiRes)
+    }
+
+    @Test
+    fun `LastWave URL and DASH manifest detection recognises spatial codecs`() {
+        assertTrue(LastWaveAddonCompatibility.isAtmosStreamUrl("https://cdn.example.com/atmos/track.mpd"))
+        assertTrue(LastWaveAddonCompatibility.isAtmosStreamUrl("https://cdn.example.com/track-eac3.mp4"))
+        assertFalse(LastWaveAddonCompatibility.isAtmosStreamUrl("https://cdn.example.com/track.flac"))
+
+        val xml = """<MPD codecs="ec-3"><Period/></MPD>"""
+        val encoded = java.util.Base64.getEncoder().encodeToString(xml.toByteArray(Charsets.UTF_8))
+        assertTrue(
+            LastWaveAddonCompatibility.isAtmosStreamUrl(
+                "data:application/dash+xml;base64,$encoded",
+            ),
+        )
+    }
+
+    @Test
+    fun `LastWave gets an explicit Atmos value for enabled disabled and stereo requests`() {
+        val url = "https://lastwaveaddons.clashprojects.qd.je/personal-token"
+
+        assertEquals("auto", LastWaveAddonCompatibility.atmosParameter(url, atmosWanted = true, stereoOnly = false))
+        assertEquals("none", LastWaveAddonCompatibility.atmosParameter(url, atmosWanted = false, stereoOnly = false))
+        assertEquals("none", LastWaveAddonCompatibility.atmosParameter(url, atmosWanted = true, stereoOnly = true))
+        assertNull(
+            LastWaveAddonCompatibility.atmosParameter(
+                "https://addon.example.com/user",
+                atmosWanted = false,
+                stereoOnly = false,
+            ),
+        )
     }
 
     // ── URL handling ──────────────────────────────────────────────────────
@@ -772,6 +819,114 @@ class AddonSourceTest {
         route("/manifest.json", manifest())
         route("/stream/t1", json("""{"url":"/relative/path.flac"}"""))
         assertNull(AddonSource(config()).stream("t1", StreamRequest.Lossless))
+    }
+
+    /** A hybrid-v1 plan must not fall through to a different URL and play the wrong rendition. */
+    @Test
+    fun `a LastWave hybrid-only response is skipped instead of playing its fallback URL`() = runBlocking {
+        route("/manifest.json", manifest())
+        route(
+            "/stream/t1",
+            json(
+                """{"url":"https://cdn.example.com/fallback.mp3","format":"mp3","codec":"mp3","hybrid":{"cdnUrl":"https://cdn.example.com/track.m4a","initRange":{"start":0,"end":99},"ranges":[{"start":100,"end":999}],"key":"00112233445566778899aabbccddeeff","encrypted":true}}""",
+            ),
+        )
+
+        assertNull(AddonSource(config()).stream("t1", StreamRequest.Lossless))
+    }
+
+    /** LastWave's own player rejects these known prank CDNs before opening audio. */
+    @Test
+    fun `a known LastWave prank CDN is refused even when it claims FLAC`() = runBlocking {
+        route("/manifest.json", manifest())
+        route(
+            "/stream/t1",
+            json("""{"url":"https://pranks-cdn.example/odd-audio.flac","format":"flac","codec":"flac","quality":"lossless"}"""),
+        )
+
+        assertNull(AddonSource(config()).stream("t1", StreamRequest.Lossless))
+    }
+
+    /** Check every URL in the reply, not just the first one BitChord would open. */
+    @Test
+    fun `a LastWave decoy hidden in an alternate URL invalidates the response`() = runBlocking {
+        route("/manifest.json", manifest())
+        route(
+            "/stream/t1",
+            json(
+                """{"url":"https://cdn.example.com/real-track.flac","directUrl":"https://definatelynagato.example/audio.flac","codec":"flac"}""",
+            ),
+        )
+
+        assertNull(AddonSource(config()).stream("t1", StreamRequest.Lossless))
+    }
+
+    /** LastWave's native client accepts a stream object wrapped under "stream" or "data". */
+    @Test
+    fun `a LastWave wrapped stream and directUrl are decoded natively`() = runBlocking {
+        route("/manifest.json", manifest())
+        route(
+            "/stream/t1",
+            json(
+                """{"stream":{"directUrl":"https://cdn.example.com/track.flac","format":"flac","codec":"flac","quality":"lossless"}}""",
+            ),
+        )
+
+        val stream = AddonSource(config()).stream("t1", StreamRequest.Lossless)
+
+        assertEquals("https://cdn.example.com/track.flac", stream?.url)
+        assertEquals("flac", stream?.format?.codec)
+        assertTrue(stream?.format?.isLossless == true)
+    }
+
+    /** LastWave may return its catalogue as an array rather than {tracks:[...]}. */
+    @Test
+    fun `a LastWave bare search array is decoded`() = runBlocking {
+        route("/manifest.json", manifest())
+        route(
+            "/search",
+            json("""[{"id":"t1","title":"Song","artist":"Artist","duration":183,"audioQuality":"LOSSLESS"}]"""),
+        )
+
+        val songs = AddonSource(config()).search("song", limit = 5)
+
+        assertEquals(1, songs.size)
+        assertEquals("Song", songs.single().title)
+        assertEquals("Artist", songs.single().artist)
+    }
+
+    /** Some LastWave responses put the result array one level below "data". */
+    @Test
+    fun `a LastWave nested data results array is decoded`() = runBlocking {
+        route("/manifest.json", manifest())
+        route(
+            "/search",
+            json("""{"data":{"results":[{"id":"t1","title":"Song","artist":"Artist","duration":183}]}}"""),
+        )
+
+        val songs = AddonSource(config()).search("song", limit = 5)
+
+        assertEquals(1, songs.size)
+        assertEquals("Song", songs.single().title)
+    }
+
+    /** Inline DASH XML is a real LastWave stream form, not a malformed HTTP URL. */
+    @Test
+    fun `a LastWave inline MPD is handed to the player as DASH`() = runBlocking {
+        route("/manifest.json", manifest())
+        route(
+            "/stream/t1",
+            json(
+                """{"stream":{"manifestXml":"<MPD xmlns='urn:mpeg:dash:schema:mpd:2011'><Period/></MPD>","format":"dash","codec":"flac"}}""",
+            ),
+        )
+
+        val stream = AddonSource(config()).stream("t1", StreamRequest.Lossless)
+
+        assertNotNull(stream)
+        assertTrue(stream!!.url.startsWith("data:application/dash+xml;base64,"))
+        assertEquals("application/dash+xml", StreamContainer.manifestMimeOf(stream.url))
+        assertTrue(stream.format.isLossless)
     }
 
     /** A 404 on stream is the addon saying it doesn't hold the track. A miss. */
