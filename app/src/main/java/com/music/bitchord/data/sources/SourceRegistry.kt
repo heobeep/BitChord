@@ -70,7 +70,11 @@ data class SourceConfig(
 
     /** Whether this has enough filled in to be worth contacting at all. */
     val isComplete: Boolean
-        get() = !kind.needsServer || baseUrl.isNotBlank()
+        get() = if (kind == SourceKind.MORNYE) {
+            baseUrl.matches(Regex("^[a-z0-9][a-z0-9_-]{0,99}$"))
+        } else {
+            !kind.needsServer || baseUrl.isNotBlank()
+        }
 }
 
 /**
@@ -498,6 +502,7 @@ object SourceRegistry {
 
     private fun build(config: SourceConfig): MusicSource = when (config.kind) {
         SourceKind.ADDON -> AddonSource(config)
+        SourceKind.MORNYE -> com.music.bitchord.data.sources.mornye.MornyeSource(config)
         // Same protocol, same implementation — the kinds differ only in rank.
         SourceKind.CUSTOM_MODULE -> ModuleSource(config)
         SourceKind.MODULE -> ModuleSource(config)

@@ -38,6 +38,7 @@ import com.music.bitchord.data.scrobbling.LastFM
 import com.music.bitchord.data.settings.AppSettings
 import com.music.bitchord.data.settings.SearchHistory
 import com.music.bitchord.data.sources.SourceRegistry
+import com.music.bitchord.data.sources.mornye.MornyeExtensionManager
 import com.music.bitchord.data.stats.ArtistFacts
 import com.music.bitchord.data.stats.ListeningStats
 import com.music.bitchord.download.Downloads
@@ -111,6 +112,7 @@ class BitChordApplication : Application(), SingletonImageLoader.Factory, Configu
         // threads racing to create it. Joined before onCreate returns, so
         // nothing that runs after startup can see any of them half open.
         val backgroundInit = thread(name = "startup-init") {
+            MornyeExtensionManager.init(this)
             SourceRegistry.init(this)
             AndroidStreamHooks.initInnerTubeX(this)
             // Its own directory: canvas clips are looping video, not audio, and

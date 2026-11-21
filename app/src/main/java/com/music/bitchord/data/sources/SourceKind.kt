@@ -127,6 +127,16 @@ enum class SourceKind(
         rank = 1,
     ),
 
+    /** An installed JavaScript provider using Mornye's registerExtension() contract. */
+    MORNYE(
+        label = "Mornye extension",
+        detail = "An installed Mornye music extension, executed in BitChord's isolated QuickJS runtime.",
+        labels = listOf("Extension", "Online provider"),
+        needsServer = false,
+        canServeLossless = false,
+        rank = 0,
+    ),
+
     JIOSAAVN(
         label = "JioSaavn",
         detail = "Optional JioSaavn streams up to 320kbps AAC/MP4. Catalogue matching can select the wrong song.",
