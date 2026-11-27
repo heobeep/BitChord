@@ -1,0 +1,36 @@
+name: LastWave BitChord Adapter
+
+on:
+  push:
+    branches:
+      - feature/lastwave-bitchord-adapter
+    paths:
+      - "addons/lastwave-bitchord-adapter/**"
+      - ".github/workflows/lastwave-bitchord-adapter.yml"
+  pull_request:
+    paths:
+      - "addons/lastwave-bitchord-adapter/**"
+      - ".github/workflows/lastwave-bitchord-adapter.yml"
+
+jobs:
+  adapter:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: addons/lastwave-bitchord-adapter
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm test
+      - name: Smoke-test manifest and health routes
+        run: |
+          npm start > /tmp/lastwave-adapter.log 2>&1 &
+          PID=$!
+          trap 'kill $PID' EXIT
+          for i in $(seq 1 20); do
+            if curl -fsS http://127.0.0.1:3000/health >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:3000/manifest.json | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const m=JSON.parse(s);if(!m.resources.includes('search')||!m.resources.includes('stream'))process.exit(1)})"
